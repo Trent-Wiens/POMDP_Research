@@ -99,8 +99,8 @@ POMDPs.discount(pomdp::DronePOMDP) = pomdp.discount_factor
 
 include("states.jl") #done
 include("actions.jl") #done
-include("transition.jl") #in prgress
-# include("observations.jl")
+include("transition.jl") #done
+include("observations.jl") #in progress
 # include("reward.jl")
 # include("visualization.jl")
 # include("heuristics.jl")

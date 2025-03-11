@@ -23,10 +23,21 @@ pomdp = DronePOMDP(map_size = (10,10),
 # exit();
 
 println("All possible actions: ", POMDPs.actions(pomdp))
-s = RSState(RSPos(3,3), SVector(true, false, true))  # Current state
-a = (7,7)  # Move from (3,3) to (7,7)
 
-println("Next state distribution: ", POMDPs.transition(pomdp, s, a))
+# Create a sample state (drone at (3,3) with all rocks present)
+s = RSState(RSPos(3,3), SVector(true, false, true))
+
+# Test transitions for a movement action
+a = (7,7)  # Move from (3,3) to (7,7)
+println("Next state distribution for moving to (7,7): ", POMDPs.transition(pomdp, s, a))
+
+# Test observations
+println("\nTesting Observations:")
+println("=====================")
+for action in POMDPs.actions(pomdp)
+    obs_distribution = POMDPs.observation(pomdp, action, s)  # Ensure action is passed
+    println("Action: $action -> Observation Distribution: $obs_distribution")
+end
 
 # # Solve the POMDP using SARSOPSolver
 # solver = SARSOPSolver(precision=1e-3, max_time=10.0)
