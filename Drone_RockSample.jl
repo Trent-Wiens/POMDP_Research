@@ -7,6 +7,8 @@ using POMDPGifs
 using NativeSARSOP
 using Random
 using Cairo
+using StaticArrays
+
 
 # Start timing
 start_time = time_ns()
@@ -21,13 +23,11 @@ pomdp = DronePOMDP(map_size = (10,10),
 # exit();
 
 println("All possible actions: ", POMDPs.actions(pomdp))
+s = RSState(RSPos(3,3), SVector(true, false, true))  # Current state
+a = (7,7)  # Move from (3,3) to (7,7)
 
-s = RSState(RSPos(3,3), SVector(true, false, true))
-println("Actions from state: ", POMDPs.actions(pomdp, s))
+println("Next state distribution: ", POMDPs.transition(pomdp, s, a))
 
-start_pos = RSPos(3,3)
-dest_pos = RSPos(7,7)
-println("Success probability to ($dest_pos): ", action_success_probability(pomdp, start_pos, dest_pos))
 # # Solve the POMDP using SARSOPSolver
 # solver = SARSOPSolver(precision=1e-3, max_time=10.0)
 # policy = solve(solver, pomdp)
