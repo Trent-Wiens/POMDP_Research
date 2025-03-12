@@ -1,19 +1,19 @@
 """
-    POMDPs.transition(pomdp::DronePOMDP, s::RSState{K}, a::Tuple{Int,Int}) where {K}
+    POMDPs.transition(pomdp::DronePOMDP, s::RSState{K}, a::Int) where {K}
 
 Defines the transition model for the DronePOMDP.
 """
-function POMDPs.transition(pomdp::DronePOMDP{K}, s::RSState{K}, a::Tuple{Int, Int}) where {K}
+function POMDPs.transition(pomdp::DronePOMDP{K}, s::RSState{K}, a::Int) where {K}
 
     if isterminal(pomdp, s)
         return Deterministic(pomdp.terminal_state)
     end
 
-    # Unpack action
-    action_x, action_y = a
+    # Convert action index to (x, y)
+    action_x, action_y = index_to_action(pomdp, a)
 
-    # If sampling (0,0), update the rock states if at a rock position
-    if a == (0,0)
+    # If sampling (1 instead of 0), update rock states if at a rock position
+    if a == SAMPLE_ACTION
         new_rocks = s.rocks
         for (i, rock_pos) in enumerate(pomdp.rocks_positions)
             if s.pos == rock_pos
@@ -23,16 +23,16 @@ function POMDPs.transition(pomdp::DronePOMDP{K}, s::RSState{K}, a::Tuple{Int, In
         return Deterministic(RSState(s.pos, new_rocks))
     end
 
-    # If sensing (0,k), state remains the same
-    if action_x == 0 && action_y > 0  # Sensing action (0, k)
+    # If sensing (101+), state remains the same
+    if a >= SENSING_START_INDEX  # Sensing action (101+)
         return Deterministic(s)  # Sensing does not change the state
     end
 
-    # Otherwise, it’s a movement action to (target_x, target_y)
+    # Otherwise, it's a movement action
     target_x, target_y = action_x, action_y
     current_x, current_y = s.pos
 
-    # Compute success probability (farther moves are less likely to succeed)
+    # Compute success probability
     distance = norm(RSPos(target_x, target_y) .- RSPos(current_x, current_y), 2)
     success_prob = exp(-0.3 * distance)  # α=0.3 (adjustable parameter)
 

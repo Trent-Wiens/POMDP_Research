@@ -90,6 +90,22 @@ function POMDPs.convert_s(T::Type{RSState}, v::AbstractArray, m::DronePOMDP)
     return RSState(RSPos(v[1], v[2]), SVector{length(v)-2,Bool}(v[i] for i = 3:length(v)))
 end
 
+"""
+    POMDPs.initialstate(pomdp::DronePOMDP{K})
+
+Returns an initial belief distribution over possible states.
+"""
+function POMDPs.initialstate(pomdp::DronePOMDP{K}) where K
+    probs = normalize!(ones(2^K), 1)  # Uniform distribution over rock states
+    states = Vector{RSState{K}}(undef, 2^K)
+
+    for (i, rocks) in enumerate(Iterators.product(ntuple(x -> [false, true], K)...))
+        states[i] = RSState{K}(pomdp.init_pos, SVector(rocks))
+    end
+
+    return SparseCat(states, probs)  # Return a valid belief distribution
+end
+
 
 # To handle the case where the `rocks_positions` is specified
 DronePOMDP(map_size::Tuple{Int, Int}, rocks_positions::AbstractVector) = DronePOMDP(map_size=map_size, rocks_positions=rocks_positions)
@@ -101,8 +117,8 @@ include("states.jl") #done
 include("actions.jl") #done
 include("transition.jl") #done
 include("observations.jl") #done
-include("rewards.jl") #in progress
-# include("visualization.jl")
+include("rewards.jl") #done 
+# include("visualization.jl") #in progress
 # include("heuristics.jl")
 
 end # module

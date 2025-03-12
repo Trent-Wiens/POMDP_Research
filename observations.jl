@@ -15,18 +15,18 @@ Return the observation index.
 POMDPs.obsindex(pomdp::DronePOMDP, o::Int) = o
 
 """
-    POMDPs.observation(pomdp::DronePOMDP, a::Tuple{Int, Int}, s::RSState)
+    POMDPs.observation(pomdp::DronePOMDP, a::Int, s::RSState)
 
 Returns a probability distribution over possible observations given action `a` and state `s`.
 """
-function POMDPs.observation(pomdp::DronePOMDP, a::Tuple{Int, Int}, s::RSState)
+function POMDPs.observation(pomdp::DronePOMDP, a::Int, s::RSState)
     # If the action is movement or sampling, return "none"
-    if a == SAMPLE_ACTION || a[1] > 0  # If first element is >0, it's a movement action
+    if a == SAMPLE_ACTION || a < SENSING_START_INDEX
         return SparseCat((1,2,3), (0.0, 0.0, 1.0))  # Always "none" when moving or sampling
     end
 
     # Extract rock index from the sensing action
-    rock_ind = a[2]  # Now sensing actions are (0, k) so k is in the second position
+    rock_ind = a - SENSING_START_INDEX  # Adjusted since sensing starts at 101
 
     # If the rock index is invalid, return "none"
     if rock_ind < 1 || rock_ind > length(pomdp.rocks_positions)
@@ -41,9 +41,19 @@ function POMDPs.observation(pomdp::DronePOMDP, a::Tuple{Int, Int}, s::RSState)
     efficiency = 0.5 * (1.0 + exp(-dist * log(2) / pomdp.sensor_efficiency))
     rock_state = s.rocks[rock_ind]
 
+    # Ensure probabilities sum to 1
     if rock_state  # Rock is good
-        return SparseCat((1,2,3), (efficiency, 1.0 - efficiency, 0.0))
+        probs = [efficiency, 1.0 - efficiency, 0.0]
     else  # Rock is bad
-        return SparseCat((1,2,3), (1.0 - efficiency, efficiency, 0.0))
+        probs = [1.0 - efficiency, efficiency, 0.0]
     end
+    probs ./= sum(probs)  # Normalize to sum to 1
+
+    if a < 10
+        println("Action: $a, Rock Index: $rock_ind, Probabilities: $probs, Sum: $(sum(probs))")
+    end
+
+    # println("Action: $a, Rock Index: $rock_ind, Probabilities: $probs, Sum: $(sum(probs))")
+
+    return SparseCat((1,2,3), probs)
 end
