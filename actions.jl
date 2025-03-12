@@ -18,7 +18,7 @@ function action_to_index(pomdp::DronePOMDP, a::Tuple{Int, Int})
 
     # Sensing action (0, k) maps to 101+
     if a[1] == 0 && a[2] > 0
-        return SENSING_START_INDEX + a[2] - 1  # Shift down by 1
+        return SENSING_START_INDEX + a[2]  # Shift down by 1
     end
 
     # Movement action (x, y) -> Convert to 1-based index
@@ -69,7 +69,7 @@ function generate_actions(pomdp::DronePOMDP{K}) where K
     end
 
     # Add sensing actions (should start at 101 and go up to 101 + K - 1)
-    for k in 1:K
+    for k in 1:K-1
         push!(all_actions, SENSING_START_INDEX + k)  # Ensure all K sensing actions exist
     end
 

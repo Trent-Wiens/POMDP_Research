@@ -1,31 +1,29 @@
 """
     POMDPs.reward(pomdp::DronePOMDP, s::RSState, a::Int)
 
-Computes the reward for taking action `a` in state `s` in `DronePOMDP`.
+Define rewards for different actions.
 """
-function POMDPs.reward(pomdp::DronePOMDP, s::RSState{K}, a::Int) where K
-    r = pomdp.step_penalty  # Base step penalty for any action
+function POMDPs.reward(pomdp::DronePOMDP, s::RSState, a::Int)
+    r = pomdp.step_penalty  # General step penalty
 
-    # Convert action index to (x, y)
-    action_x, action_y = index_to_action(pomdp, a)
-
-    # Exit reward if flying out of bounds
-    if action_x > pomdp.map_size[1] || action_y > pomdp.map_size[2]
-        return r + pomdp.exit_reward
+    # If drone tries to exit (out of bounds), give reward
+    if s.pos[1] > pomdp.map_size[1]
+        r += pomdp.exit_reward
+        return r
     end
 
-    # Sampling reward (if at a rock position)
+    # If sampling, reward or penalize based on rock quality
     if a == SAMPLE_ACTION && in(s.pos, pomdp.rocks_positions)
         rock_ind = findfirst(isequal(s.pos), pomdp.rocks_positions)
         if rock_ind !== nothing
-            return r + (s.rocks[rock_ind] ? pomdp.good_rock_reward : pomdp.bad_rock_penalty)
+            r += s.rocks[rock_ind] ? pomdp.good_rock_reward : pomdp.bad_rock_penalty
         end
+    elseif a >= SENSING_START_INDEX
+        # Penalize using the sensor too much (optional)
+        r += pomdp.sensor_use_penalty
+    else
+        # Encourage movement (optional: adjust for optimal behavior)
+        r += 1.0  # Small reward for moving
     end
-
-    # Sensor use penalty (if sensing a rock)
-    if a >= SENSING_START_INDEX  # Sensing action (101+)
-        return r + pomdp.sensor_use_penalty
-    end
-
     return r
 end

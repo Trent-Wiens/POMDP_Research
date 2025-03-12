@@ -4,15 +4,14 @@
 Defines the transition model for the DronePOMDP.
 """
 function POMDPs.transition(pomdp::DronePOMDP{K}, s::RSState{K}, a::Int) where {K}
-
     if isterminal(pomdp, s)
         return Deterministic(pomdp.terminal_state)
     end
 
-    # Convert action index to (x, y)
-    action_x, action_y = index_to_action(pomdp, a)
+    # Convert action index to (x, y) position
+    target_x, target_y = index_to_action(pomdp, a)
 
-    # If sampling (1 instead of 0), update rock states if at a rock position
+    # If sampling action, update the rock state
     if a == SAMPLE_ACTION
         new_rocks = s.rocks
         for (i, rock_pos) in enumerate(pomdp.rocks_positions)
@@ -23,42 +22,35 @@ function POMDPs.transition(pomdp::DronePOMDP{K}, s::RSState{K}, a::Int) where {K
         return Deterministic(RSState(s.pos, new_rocks))
     end
 
-    # If sensing (101+), state remains the same
-    if a >= SENSING_START_INDEX  # Sensing action (101+)
-        return Deterministic(s)  # Sensing does not change the state
+    # If sensing action, state remains the same
+    if a >= SENSING_START_INDEX
+        return Deterministic(s)
     end
 
-    # Otherwise, it's a movement action
-    target_x, target_y = action_x, action_y
+    # Otherwise, this is a movement action
     current_x, current_y = s.pos
-
-    # Compute success probability
     distance = norm(RSPos(target_x, target_y) .- RSPos(current_x, current_y), 2)
-    success_prob = exp(-0.3 * distance)  # α=0.3 (adjustable parameter)
 
-    # If successful, move to target location
-    new_pos = RSPos(target_x, target_y)
+    # If within range, move with 100% success
+    if distance <= 3
+        return Deterministic(RSState(RSPos(target_x, target_y), s.rocks))
+    end
 
-    # If failure, move to a nearby random location
+    # If out of range, movement fails - land in a random nearby cell
     nx, ny = pomdp.map_size
     neighbor_moves = [(dx, dy) for dx in -1:1, dy in -1:1 if (dx, dy) != (0, 0)]
     fallback_positions = [
         (clamp(current_x + dx, 1, nx), clamp(current_y + dy, 1, ny))
         for (dx, dy) in neighbor_moves
     ]
-    
-    # Create a probability distribution over next states
+
+    # Create a probability distribution over fallback states
     next_states = Vector{RSState{K}}()
     probabilities = Vector{Float64}()
 
-    push!(next_states, RSState{K}(new_pos, s.rocks))  # Successful move
-    push!(probabilities, success_prob)
-
-    # Failed movement: drone lands in a random adjacent cell
-    failure_prob = (1 - success_prob) / length(fallback_positions)
     for fallback in fallback_positions
-        push!(next_states, RSState{K}(RSPos(fallback...), s.rocks))
-        push!(probabilities, failure_prob)
+        push!(next_states, RSState(RSPos(fallback...), s.rocks))
+        push!(probabilities, 1.0 / length(fallback_positions))  # Uniform fallback probability
     end
 
     return SparseCat(next_states, probabilities)

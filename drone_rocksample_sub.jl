@@ -118,7 +118,7 @@ include("actions.jl") #done
 include("transition.jl") #done
 include("observations.jl") #done
 include("rewards.jl") #done 
-# include("visualization.jl") #in progress
+include("visualization.jl") #in progress
 # include("heuristics.jl")
 
 end # module

@@ -15,7 +15,7 @@ start_time = time_ns()
 
 # Create the DronePOMDP instance
 pomdp = DronePOMDP(map_size = (10,10),
-                    rocks_positions=[(2,10), (4,8), (7,2)],
+                    rocks_positions=[(2,10), (4,8), (7,2), (2,2)],
                     sensor_efficiency=20.0,
                     discount_factor=0.95,
                     good_rock_reward = 20.0)
