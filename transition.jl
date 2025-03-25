@@ -1,8 +1,3 @@
-"""
-    POMDPs.transition(pomdp::DronePOMDP, s::RSState{K}, a::Int) where {K}
-
-Defines the transition model for the DronePOMDP.
-"""
 function POMDPs.transition(pomdp::DronePOMDP{K}, s::RSState{K}, a::Int) where {K}
     if isterminal(pomdp, s)
         return Deterministic(pomdp.terminal_state)
@@ -24,34 +19,34 @@ function POMDPs.transition(pomdp::DronePOMDP{K}, s::RSState{K}, a::Int) where {K
 
     # If sensing action, state remains the same
     if a >= SENSING_START_INDEX
-        return Deterministic(s)
+        return Deterministic(s)  # Sensing does not change position
     end
 
     # Otherwise, this is a movement action
     current_x, current_y = s.pos
     distance = norm(RSPos(target_x, target_y) .- RSPos(current_x, current_y), 2)
 
-    # If within range, move with 100% success
+    # Define the exit area (rightmost column)
+    exit_x = pomdp.map_size[1]
+
+    # If the drone tries to reach the exit area, check if all rocks are sampled
+    if target_x == exit_x
+        # Only allow exit if all rocks have been sampled (are false)
+        all_rocks_sampled = !any(s.rocks)
+        
+        if all_rocks_sampled
+            return Deterministic(pomdp.terminal_state)
+        else
+            # If trying to exit with unsampled rocks, prevent movement
+            return Deterministic(s)
+        end
+    end
+
+    # If within range (≤3 spaces), move with 100% success
     if distance <= 3
         return Deterministic(RSState(RSPos(target_x, target_y), s.rocks))
     end
 
-    # If out of range, movement fails - land in a random nearby cell
-    nx, ny = pomdp.map_size
-    neighbor_moves = [(dx, dy) for dx in -1:1, dy in -1:1 if (dx, dy) != (0, 0)]
-    fallback_positions = [
-        (clamp(current_x + dx, 1, nx), clamp(current_y + dy, 1, ny))
-        for (dx, dy) in neighbor_moves
-    ]
-
-    # Create a probability distribution over fallback states
-    next_states = Vector{RSState{K}}()
-    probabilities = Vector{Float64}()
-
-    for fallback in fallback_positions
-        push!(next_states, RSState(RSPos(fallback...), s.rocks))
-        push!(probabilities, 1.0 / length(fallback_positions))  # Uniform fallback probability
-    end
-
-    return SparseCat(next_states, probabilities)
+    # If move is too far, stay in place
+    return Deterministic(s)
 end
