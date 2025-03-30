@@ -127,7 +127,7 @@ function create_localized_pomdp(pomdp::DronePOMDPType, center_pos,
     local_pomdp = drs.DroneRockSamplePOMDP(
         map_size = local_map_size,
         rocks_positions = local_adjusted_rocks,
-        init_pos = drs.RSPos(center_pos[1] - min_x + 1, center_pos[2] - min_y + 1),
+        init_pos = drs.(center_pos[1] - min_x + 1, center_pos[2] - min_y + 1),
         sensor_efficiency = pomdp.sensor_efficiency,
         bad_rock_penalty = pomdp.bad_rock_penalty,
         good_rock_reward = pomdp.good_rock_reward,
