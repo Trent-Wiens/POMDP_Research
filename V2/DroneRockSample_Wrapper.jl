@@ -13,8 +13,9 @@ start_time = time_ns()
 
 # Create a smaller example first for testing
 pomdp = DroneRockSamplePOMDP(
-    map_size = (10, 10),  # Reduced map size for testing
-    rocks_positions = [(2, 8), (4, 5), (7, 2), (8,9)],
+    map_size = (7, 7),  # Reduced map size for testing
+    rocks_positions = [(2, 2), (2, 6), (3, 4), (4, 1),
+                       (5, 5), (6, 3), (6, 7), (7, 6)],
     sensor_efficiency = 20.0,
     discount_factor = 0.95,
     good_rock_reward = 20.0,
@@ -45,7 +46,7 @@ println("Elapsed time: $elapsed_time seconds")
 println("Creating simulation GIF...")
 sim = GifSimulator(
     filename = "DroneRockSample.gif", 
-    max_steps = 15,  # Reduced steps for testing
+    max_steps = 50,  # Reduced steps for testing
     rng = MersenneTwister(1), 
     show_progress = true  # Enable progress display
 )
