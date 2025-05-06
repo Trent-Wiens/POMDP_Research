@@ -18,10 +18,14 @@ function POMDPs.reward(pomdp::DroneRockSamplePOMDP, s::RSState, a::Int)
     end
 
     # Apply action-specific rewards/penalties
-    if a == ACTION_SAMPLE && in(s.pos, pomdp.rocks_positions)
-        # Sampling action
-        rock_ind = findfirst(isequal(s.pos), pomdp.rocks_positions)
-        r += s.rocks[rock_ind] ? pomdp.good_rock_reward : pomdp.bad_rock_penalty
+    if a == ACTION_SAMPLE
+        if in(s.pos, pomdp.rocks_positions)
+            rock_ind = findfirst(isequal(s.pos), pomdp.rocks_positions)
+            r += s.rocks[rock_ind] ? pomdp.good_rock_reward : pomdp.bad_rock_penalty
+        else
+            rock_ind = findfirst(isequal(s.pos), pomdp.rocks_positions)
+            r += pomdp.wrong_sample  # Penalize useless sampling
+        end
     elseif is_fly_action(a)
         # Flying action - apply small penalty proportional to distance
         direction = action_to_direction(a)

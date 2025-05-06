@@ -56,8 +56,9 @@ directly to any location within a distance of 3 cells.
     sensor_efficiency::Float64 = 20.0
     bad_rock_penalty::Float64 = -10
     good_rock_reward::Float64 = 10.
-    step_penalty::Float64 = 0.
-    sensor_use_penalty::Float64 = 0.
+    step_penalty::Float64 = 0
+    sensor_use_penalty::Float64 = 0
+    wrong_sample::Float64 = -5  # Penalty for useless sampling
     fly_penalty::Float64 = -0.1  # Small penalty for flying (fuel cost)
     exit_reward::Float64 = 10.
     terminal_state::RSState{K} = RSState(RSPos(-1,-1),

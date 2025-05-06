@@ -87,7 +87,7 @@ function simulate_with_receding_horizon(
     solver::RecedingHorizonSolver,
     pomdp::DroneRockSamplePOMDP,
     init_state,
-    max_steps::Int=100
+    max_steps::Int=20
 )
     current_state = init_state
     trajectory = [(s=current_state, a=0, r=0.0, sp=current_state)]
@@ -264,7 +264,9 @@ function create_comparison_visualization()
     rng = MersenneTwister(42)
 
     # Create a 7x7 DroneRockSample POMDP with 8 rocks
-    rock_positions = [(2,1), (3, 7), (5, 12), (8, 4), (11, 9), (14, 10), (6, 6), (9, 13), (1, 5), (13, 3), (7, 14), (4, 8), (10, 2), (12, 11), (15, 15)]
+    rock_positions = [(2,1), (3, 7),  (8, 4),  (6, 6),  (1, 5),   (4, 8), (10, 2) ]
+
+    # (5, 12), (14, 10), (11, 9), (9, 13), (13, 3), (7, 14), (12, 11), (15, 15)
 
     pomdp = DroneRockSamplePOMDP(
         map_size=(15, 15),
@@ -284,50 +286,53 @@ function create_comparison_visualization()
     start_time = time_ns()
 
     # Create a smaller example first for testing
-    # pomdp = DroneRockSamplePOMDP(
-    #     map_size=(15, 15),  # Reduced map size for testing
-    #     rocks_positions=rock_positions,
-    #     sensor_efficiency=20.0,
-    #     discount_factor=0.95,
-    #     good_rock_reward=20.0,
-    #     fly_penalty=-0.2
-    # )
+    pomdp = DroneRockSamplePOMDP(
+        map_size=(10, 10),  # Reduced map size for testing
+        rocks_positions=rock_positions,
+        sensor_efficiency=20.0,
+        discount_factor=0.95,
+        good_rock_reward=20.0,
+        fly_penalty=-0.2
+    )
 
-    # println("POMDP created successfully")
+    println("POMDP created successfully")
 
-    # # Print the action space size
-    # println("Number of actions: ", length(actions(pomdp)))
-    # println("Basic actions: ", N_BASIC_ACTIONS)
-    # println("Total rocks: ", length(pomdp.rocks_positions))
+    # Print the action space size
+    println("Number of actions: ", length(actions(pomdp)))
+    println("Basic actions: ", N_BASIC_ACTIONS)
+    println("Total rocks: ", length(pomdp.rocks_positions))
 
-    # # Get the list of states
-    # states = ordered_states(pomdp)
-    # println("Number of states: ", length(states))
+    # Get the list of states
+    states = ordered_states(pomdp)
+    println("Number of states: ", length(states))
 
-    # # Solve the POMDP using SARSOP with shorter time for testing
-    # println("Solving with SARSOP...")
-    # solver = SARSOPSolver(precision=1e-2, max_time=5.0)  # Reduced precision and time
-    # policy = POMDPs.solve(solver, pomdp)  # Explicitly use POMDPs.solve
+    # Solve the POMDP using SARSOP with shorter time for testing
+    println("Solving with SARSOP...")
+    solver = SARSOPSolver(precision=1e-2, max_time=5.0)  # Reduced precision and time
+    policy = POMDPs.solve(solver, pomdp)  # Explicitly use POMDPs.solve
 
-    # end_time = time_ns()
-    # elapsed_time = (end_time - start_time) / 1e9  # Convert from nanoseconds to seconds
-    # println("Elapsed time: $elapsed_time seconds")
+    end_time = time_ns()
+    elapsed_time = (end_time - start_time) / 1e9  # Convert from nanoseconds to seconds
+    println("Elapsed time: $elapsed_time seconds")
 
-    # # Create a GIF of the simulation
-    # println("Creating simulation GIF...")
-    # sim = GifSimulator(
-    #     filename="DroneRockSample.gif",
-    #     max_steps=50,  # Reduced steps for testing
-    #     rng=MersenneTwister(1),
-    #     show_progress=true  # Enable progress display
-    # )
+    # Create a GIF of the simulation
+    println("Creating simulation GIF...")
+    sim = GifSimulator(
+        filename="DroneRockSample.gif",
+        max_steps=50,  # Reduced steps for testing
+        rng=MersenneTwister(1),
+        show_progress=true  # Enable progress display
+    )
 
-    # saved_gif = simulate(sim, pomdp, policy)
+    saved_gif = simulate(sim, pomdp, policy)
 
-    # println("GIF saved to: $(saved_gif.filename)")
+    println("GIF saved to: $(saved_gif.filename)")
 
 
     ####################################################################################################
+
+
+    # exit()
 
     # 2. Receding Horizon approach
     println("\n=== Running Receding Horizon Solution ===")
@@ -345,11 +350,13 @@ function create_comparison_visualization()
     # For visualization, store the sequence of steps
     all_steps = []
 
+    count = 0;
+
     while true # Continue until we break due to reaching terminal state
         println("\n=== Position: $pos ===")
 
         # Check if we've reached terminal state
-        if pos[1] > pomdp.map_size[1]
+        if pos[1] > pomdp.map_size[1] ||  count > 30
             println("Reached exit! Terminal state achieved.")
             break
         end
@@ -365,39 +372,21 @@ function create_comparison_visualization()
 
         println("Horizon boundaries: x=[$(x_min),$(x_max)], y=[$(y_min),$(y_max)]")
 
-        # # Get rocks within horizon
-        # sub_rocks = []
-        # rock_mapping = Dict() # Maps original rock indices to sub-POMDP indices
+    sub_rocks = []
+    rock_mapping = Dict() # Maps original rock indices to sub-POMDP indices
 
-        # for (i, rock) in enumerate(rock_positions)
-        #     if x_min <= rock[1] <= x_max && y_min <= rock[2] <= y_max
-        #         # Convert to local coordinates
-        #         local_rock = (rock[1] - x_min + 1, rock[2] - y_min + 1)
-        #         push!(sub_rocks, local_rock)
-        #         rock_mapping[i] = length(sub_rocks) # Original index -> local index
-        #         println("Rock at $rock (global) → $local_rock (local) is within horizon")
-        #     end
-        # end
-
-        # # Convert position to local coordinates
-        # local_pos = (pos[1] - x_min + 1, pos[2] - y_min + 1)
-
-        # Get rocks within horizon, but only include uncertain rocks
-sub_rocks = []
-rock_mapping = Dict() # Maps original rock indices to sub-POMDP indices
-
-# First, add uncertain rocks within the horizon
-for (i, rock) in enumerate(rock_positions)
-    # Only include rocks we're uncertain about
-    # Let's define "uncertain" as not being 95% sure either way
-    if (0.05 < rock_beliefs[i] < 0.95) && x_min <= rock[1] <= x_max && y_min <= rock[2] <= y_max
-        # Convert to local coordinates
-        local_rock = (rock[1] - x_min + 1, rock[2] - y_min + 1)
-        push!(sub_rocks, local_rock)
-        rock_mapping[i] = length(sub_rocks)
-        println("Uncertain rock at $rock (global) → $local_rock (local) is within horizon")
+    # First, add uncertain rocks within the horizon
+    for (i, rock) in enumerate(rock_positions)
+        # Only include rocks we're uncertain about
+        # Let's define "uncertain" as not being 95% sure either way
+        if (0.05 < rock_beliefs[i] < 0.95) && x_min <= rock[1] <= x_max && y_min <= rock[2] <= y_max
+            # Convert to local coordinates
+            local_rock = (rock[1] - x_min + 1, rock[2] - y_min + 1)
+            push!(sub_rocks, local_rock)
+            rock_mapping[i] = length(sub_rocks)
+            println("Uncertain rock at $rock (global) → $local_rock (local) is within horizon")
+        end
     end
-end
 
 # If no uncertain rocks in horizon, find the closest uncertain rock
 if isempty(sub_rocks)
@@ -549,11 +538,25 @@ local_pos = (pos[1] - x_min + 1, pos[2] - y_min + 1)
             end
         end
 
+        print("next state pos: $(next_state.pos)")
+
         # Convert next state's position to global coordinates
         new_global_pos = [
             next_state.pos[1] + x_min - 1,
             next_state.pos[2] + y_min - 1
         ]
+
+        #clamp the position to the map size
+        global_clamp = (new_global_pos[1], min(new_global_pos[2], pomdp.map_size[2]))
+        global_clamp = (max(new_global_pos[1], 1), max(new_global_pos[2], 1))
+
+        new_global_pos = [
+            global_clamp[1],
+            global_clamp[2] 
+        ]
+
+        print("New global position: $new_global_pos")
+
 
         # Calculate reward
         r = reward(sub_pomdp, current_state, actionNum, next_state)
@@ -574,20 +577,22 @@ local_pos = (pos[1] - x_min + 1, pos[2] - y_min + 1)
         # Optional: Create visualization for this step
         # This would create a GIF for each sub-POMDP
         # Uncomment if you want a GIF for each step
-        # sim = GifSimulator(
-        #     filename="step_$(length(all_steps)).gif",
-        #     max_steps=50,
-        #     rng=MersenneTwister(1),
-        #     show_progress=true
-        # )
-        # simulate(sim, sub_pomdp, policy)
+        sim = GifSimulator(
+            filename="step_$(length(all_steps)).gif",
+            max_steps=50,
+            rng=MersenneTwister(1),
+            show_progress=true
+        )
+        simulate(sim, sub_pomdp, policy)
 
-        # For debugging - limit number of steps
-        # if length(all_steps) >= 20
+        # # For debugging - limit number of steps
+        # if length(all_steps) >= 30
             
         #     println("Reached maximum step limit!")
         #     break
         # end
+
+        count = count + 1;
     end
 
     # Final statistics
@@ -740,17 +745,20 @@ local_pos = (pos[1] - x_min + 1, pos[2] - y_min + 1)
     #     MersenneTwister(42)
     # )
 
-    # Simulate with the receding horizon approach
+
+    
+
+    # # Simulate with the receding horizon approach
     # rh_sim = simulate_with_receding_horizon(rh_solver, pomdp, init_state)
 
-    # Convert trajectories to steps for rendering
+    # # Convert trajectories to steps for rendering
     # full_steps = convert_trajectory_to_steps(full_sim.trajectory, pomdp)
     # rh_steps = convert_trajectory_to_steps(rh_sim.trajectory, pomdp)
 
-    # Create GIFs for visualization
+    # # Create GIFs for visualization
     # println("\n=== Creating GIFs ===")
 
-    # # Full SARSOP GIF
+    # # # Full SARSOP GIF
     # full_sim_gif = GifSimulator(
     #     filename="FullSARSOP.gif",
     #     max_steps=length(full_steps),
@@ -764,7 +772,7 @@ local_pos = (pos[1] - x_min + 1, pos[2] - y_min + 1)
     # # Create GIFs
     # # simulate(full_sim_gif, pomdp, full_policy_replay, updater(full_policy), initialstate(pomdp))
 
-    # # Receding Horizon GIF
+    # Receding Horizon GIF
     # rh_sim_gif = GifSimulator(
     #     filename="RecedingHorizon.gif",
     #     max_steps=length(rh_steps),
@@ -773,9 +781,9 @@ local_pos = (pos[1] - x_min + 1, pos[2] - y_min + 1)
 
     # simulate(rh_sim_gif, pomdp, rh_policy_replay, updater(full_policy), initialstate(pomdp))
 
-    # println("GIFs created:")
-    # println("  Full SARSOP: FullSARSOP.gif")
-    # println("  Receding Horizon: RecedingHorizon.gif")
+    println("GIFs created:")
+    println("  Full SARSOP: FullSARSOP.gif")
+    println("  Receding Horizon: RecedingHorizon.gif")
 
     # Return results
     return (
@@ -785,6 +793,8 @@ local_pos = (pos[1] - x_min + 1, pos[2] - y_min + 1)
         # full_reward=full_sim.total_reward,
         # rh_reward=rh_sim.total_reward
     )
+
+    count = count + 1;
 end
 
 # Run the visualization

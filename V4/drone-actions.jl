@@ -51,16 +51,24 @@ const ACTION_DIRS = generate_flight_dirs()
 POMDPs.actions(pomdp::DroneRockSamplePOMDP{K}) where K = 1:N_BASIC_ACTIONS+K
 POMDPs.actionindex(pomdp::DroneRockSamplePOMDP, a::Int) = a
 
-function POMDPs.actions(pomdp::DroneRockSamplePOMDP{K}, s::RSState) where K
-    if in(s.pos, pomdp.rocks_positions) # allow sampling only if on a rock
-        return actions(pomdp)
+function POMDPs.actions(pomdp::DroneRockSamplePOMDP{K}, s::RSState{K}) where K
+    rock_idx = findfirst(==(s.pos), pomdp.rocks_positions)
+    if rock_idx !== nothing
+        return 1:N_BASIC_ACTIONS+K  # Allow sampling
     else
-        # sample not available, only flying and sensing
-        return ACTION_SAMPLE+1:N_BASIC_ACTIONS+K
+        return ACTION_SAMPLE+1:N_BASIC_ACTIONS+K  # Disallow sample
     end
 end
 
-# Fixed version to avoid recursion
+# function POMDPs.actions(pomdp::DroneRockSamplePOMDP{K}, s::RSState) where K
+#     if in(s.pos, pomdp.rocks_positions) # allow sampling only if on a rock
+#         return actions(pomdp)
+#     else
+#         # sample not available, only flying and sensing
+#         return ACTION_SAMPLE+1:N_BASIC_ACTIONS+K
+#     end
+# end
+
 function POMDPs.actions(pomdp::DroneRockSamplePOMDP, b)
     # All states in a belief should have the same position
     # Get a representative state
