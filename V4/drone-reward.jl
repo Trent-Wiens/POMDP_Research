@@ -12,9 +12,12 @@ function POMDPs.reward(pomdp::DroneRockSamplePOMDP, s::RSState, a::Int)
     end
     
     # Check if we're exiting the map
-    if next_pos[1] > pomdp.map_size[1]
+    if next_pos[1] > pomdp.max_map_size[1]
         r += pomdp.exit_reward
         return r
+    elseif next_pos[1] < 1 || next_pos[2] < 1 || 
+            next_pos[1] > pomdp.map_size[1] || next_pos[2] > pomdp.map_size[2]
+        return r  # Out of bounds, no additional reward
     end
 
     # Apply action-specific rewards/penalties
@@ -23,7 +26,6 @@ function POMDPs.reward(pomdp::DroneRockSamplePOMDP, s::RSState, a::Int)
             rock_ind = findfirst(isequal(s.pos), pomdp.rocks_positions)
             r += s.rocks[rock_ind] ? pomdp.good_rock_reward : pomdp.bad_rock_penalty
         else
-            rock_ind = findfirst(isequal(s.pos), pomdp.rocks_positions)
             r += pomdp.wrong_sample  # Penalize useless sampling
         end
     elseif is_fly_action(a)

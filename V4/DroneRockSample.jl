@@ -51,12 +51,13 @@ directly to any location within a distance of 3 cells.
 """
 @with_kw struct DroneRockSamplePOMDP{K} <: POMDP{RSState{K}, Int, Int}
     map_size::Tuple{Int, Int} = (5,5)
+    max_map_size::Tuple{Int, Int} = (10,10)  #size of the map
     rocks_positions::SVector{K,RSPos} = @SVector([(1,1), (3,3), (4,4)])
     init_pos::RSPos = (1,1)
     sensor_efficiency::Float64 = 20.0
-    bad_rock_penalty::Float64 = -10
+    bad_rock_penalty::Float64 = -5
     good_rock_reward::Float64 = 10.
-    step_penalty::Float64 = 0
+    step_penalty::Float64 = -0.2
     sensor_use_penalty::Float64 = 0
     wrong_sample::Float64 = -5  # Penalty for useless sampling
     fly_penalty::Float64 = -0.1  # Small penalty for flying (fuel cost)
@@ -70,11 +71,13 @@ end
 
 # Constructor for non-StaticArray rocks_positions
 function DroneRockSamplePOMDP(map_size,
+                             max_map_size,
                              rocks_positions,
                              args...
                             )
     k = length(rocks_positions)
     return DroneRockSamplePOMDP{k}(map_size,
+                                  max_map_size,  # Default to same size for max_map_size
                                   SVector{k,RSPos}(rocks_positions),
                                   args...
                                  )
@@ -106,7 +109,7 @@ end
 
 # Constructor with specified rocks positions
 DroneRockSamplePOMDP(map_size::Tuple{Int, Int}, rocks_positions::AbstractVector) = 
-    DroneRockSamplePOMDP(map_size=map_size, rocks_positions=rocks_positions)
+    DroneRockSamplePOMDP(map_size=map_size,max_map_size=max_map_size, rocks_positions=rocks_positions)
 
 POMDPs.isterminal(pomdp::DroneRockSamplePOMDP, s::RSState) = s.pos == pomdp.terminal_state.pos 
 POMDPs.discount(pomdp::DroneRockSamplePOMDP) = pomdp.discount_factor

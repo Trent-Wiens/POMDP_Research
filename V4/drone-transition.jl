@@ -18,7 +18,7 @@ function POMDPs.transition(pomdp::DroneRockSamplePOMDP{K}, s::RSState{K}, a::Int
         new_rocks = s.rocks
     end
     
-    if new_pos[1] > pomdp.map_size[1]
+    if new_pos[1] > pomdp.max_map_size[1]
         # the drone reached the exit area
         new_state = pomdp.terminal_state
     else
