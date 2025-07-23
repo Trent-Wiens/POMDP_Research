@@ -56,7 +56,7 @@ directly to any location within a distance of 3 cells.
     init_pos::RSPos = (1,1)
     sensor_efficiency::Float64 = 20.0
     bad_rock_penalty::Float64 = -5
-    good_rock_reward::Float64 = 10.
+    good_rock_reward::Float64 = 100.
     step_penalty::Float64 = -0.2
     sensor_use_penalty::Float64 = 0
     wrong_sample::Float64 = -5  # Penalty for useless sampling

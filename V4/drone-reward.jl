@@ -15,8 +15,7 @@ function POMDPs.reward(pomdp::DroneRockSamplePOMDP, s::RSState, a::Int)
     if next_pos[1] > pomdp.max_map_size[1]
         r += pomdp.exit_reward
         return r
-    elseif next_pos[1] < 1 || next_pos[2] < 1 || 
-            next_pos[1] > pomdp.map_size[1] || next_pos[2] > pomdp.map_size[2]
+    elseif next_pos[1] < 1 || next_pos[2] < 1  || next_pos[1] > pomdp.map_size[1] || next_pos[2] > pomdp.map_size[2]
         return r  # Out of bounds, no additional reward
     end
 

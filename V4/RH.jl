@@ -128,6 +128,8 @@ function create_comparison_visualization()
 
         # Create sub-POMDP with current horizon and uncertain rocks
 
+        # println(sub_rocks)
+
         sub_pomdp = DroneRockSamplePOMDP(
             map_size=(xsize, y_size),
             max_map_size=pomdp.map_size,  #keep track of original map size
@@ -176,6 +178,9 @@ function create_comparison_visualization()
             belief = POMDPs.initialstate(sub_pomdp)
         end
 
+        # add the exit to the original pomdp, outside of the horizon
+
+
         println("Created sub-POMDP with dimensions $(sub_pomdp.map_size) and $(length(sub_pomdp.rocks_positions)) rocks")
 
         # Solve sub-POMDP using SARSOP
@@ -200,7 +205,7 @@ function create_comparison_visualization()
         obs = rand(rng, POMDPs.observation(sub_pomdp, chosenAct, next_state))
 
         # Update rock beliefs if it was a sensing action
-        if chosenAct > N_BASIC_ACTIONS
+         if chosenAct > N_BASIC_ACTIONS
             local_rock_idx = chosenAct - N_BASIC_ACTIONS
             # Find which original rock this corresponds to
             for (orig_idx, local_idx) in rock_mapping
@@ -229,6 +234,7 @@ function create_comparison_visualization()
 
                         println("Updated belief for rock $orig_idx: $p_good → $posterior")
                     end
+
                     break
                 end
             end
@@ -236,67 +242,8 @@ function create_comparison_visualization()
 
         if chosenAct == ACTION_SAMPLE #sample rock and remove it from the set of rock_positions
             rock_idx = findfirst(isequal(next_state.pos), pomdp.rocks_positions)
-            # println(rock_idx)
-            # println(typeof(pos))
-            # println(pos[1])
-            # println(pos[2])
-            # println(rock_positions[rock_idx][1])
-            # println(rock_positions[rock_idx][2])
-            # println(typeof(rock_positions[rock_idx]))
-            if rock_idx !== nothing && pos[1] == rock_positions[rock_idx][1] && pos[2] == rock_positions[rock_idx][2]
-                deleteat!(rock_positions, rock_idx) # Remove the sampled rock from the global rock positions
-                println("Sampled rock at position $(next_state.pos), removing from beliefs.")
-            else
-                println("No rock at sampled position $(next_state.pos), no update to beliefs.")
-            end
-            
+            rock_beliefs[pomdp.rocks_positions[rock_idx]] = 0.0  # Set belief to 0 after sampling
         end
-
-
-        # # Update rock beliefs if it was a sensing action
-        # if chosenAct > N_BASIC_ACTIONS
-        #     local_rock_idx = chosenAct - N_BASIC_ACTIONS
-        #     # println("Local rock index: $local_rock_idx")
-        #     # Find which original rock this corresponds to
-        #     # for (orig_idx, local_idx) in rock_mapping
-        #     # println("pos = $(pos)")
-        #     local_rock_pos = sub_pomdp.rocks_positions[local_rock_idx]
-        #     # println("Local rock position: $local_rock_pos")
-        #     rock_num = rock_mapping[local_rock_pos]
-        #     # println("Rock number in original POMDP: $rock_num")
-        #         # if pos == local_rock_pos
-        #             # Update belief about this rock based on observation
-        #             if obs == 1 # good rock observation
-        #                 # Update using Bayes rule
-        #                 p_good = rock_beliefs[local_rock_pos]
-        #                 efficiency = 0.5 * (1.0 + exp(-1 * norm(collect(rock_positions[rock_num]) .- pos) * log(2) / sub_pomdp.sensor_efficiency))
-
-        #                 # P(good|obs) = P(obs|good)P(good)/P(obs)
-        #                 posterior = (efficiency * p_good) /
-        #                             (efficiency * p_good + (1.0 - efficiency) * (1.0 - p_good))
-        #                 rock_beliefs[local_rock_pos] = posterior
-
-        #                 println("Updated belief for rock $local_rock_pos: $p_good → $posterior")
-        #             elseif obs == 2 # bad rock observation
-        #                 p_good = rock_beliefs[local_rock_pos]
-        #                 # rock_pos = collect(rock_positions[local_rock_pos])
-        #                 # println("Rock position: $local_rock_pos")
-        #                 # print(rock_pos)
-        #                 # print(pos)
-        #                 efficiency = 0.5 * (1.0 + exp(-1 * norm(collect(rock_positions[rock_num]) .- pos) * log(2) / sub_pomdp.sensor_efficiency))
-        #                 # P(good|obs_bad) = P(obs_bad|good)P(good)/P(obs_bad)
-        #                 posterior = ((1.0 - efficiency) * p_good) /
-        #                             ((1.0 - efficiency) * p_good + efficiency * (1.0 - p_good))
-        #                 rock_beliefs[local_rock_pos] = posterior
-
-        #                 println("Updated belief for rock $local_rock_pos: $p_good → $posterior")
-        #             end
-        #             # break
-        #         # else
-        #             # println("No rock at local index $local_rock_idx")
-        #         # end
-        #     # end
-        # end
 
         println("Next state sub-pomdp pos: $(next_state.pos)")
 
