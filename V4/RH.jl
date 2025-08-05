@@ -78,7 +78,7 @@ function create_comparison_visualization()
         ymin = max(1, center_pos[2] - horizon)
         xmax = min(pomdp.map_size[1], center_pos[1] + horizon)
         ymax = min(pomdp.map_size[2], center_pos[2] + horizon)
-        xsize = xmax - xmin + 1
+        x_size = xmax - xmin + 1
         y_size = ymax - ymin + 1
 
         println("Horizon boundaries: xmin = $(xmin), ymin = $(ymin), xmax = $(xmax), ymax = $(ymax)")
@@ -131,13 +131,14 @@ function create_comparison_visualization()
         # println(sub_rocks)
 
         sub_pomdp = DroneRockSamplePOMDP(
-            map_size=(xsize, y_size),
+            map_size=(x_size, y_size),
+            # map_size = pomdp.map_size, 
             max_map_size=pomdp.map_size,  #keep track of original map size
             rocks_positions=sub_rocks,
             init_pos=(pos[1] - xmin + 1, pos[2] - ymin + 1),  # Adjust initial position for sub-POMDP
             sensor_efficiency=pomdp.sensor_efficiency,
             discount_factor=pomdp.discount_factor,
-            good_rock_reward=pomdp.good_rock_reward,
+            good_rock_reward=pomdp.good_rock_reward * 10,
             fly_penalty=pomdp.fly_penalty
         )
 
@@ -180,8 +181,7 @@ function create_comparison_visualization()
 
         # add the exit to the original pomdp, outside of the horizon
 
-
-        println("Created sub-POMDP with dimensions $(sub_pomdp.map_size) and $(length(sub_pomdp.rocks_positions)) rocks")
+        println("Created sub-POMDP with dimensions $(x_size) x $(y_size) and $(length(sub_pomdp.rocks_positions)) rocks")
 
         # Solve sub-POMDP using SARSOP
 
