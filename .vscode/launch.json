@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "julia",
+        "request": "launch",
+        "name": "Debug (project env)",
+        "program": "${file}",
+        "cwd": "${workspaceFolder}",
+        "juliaEnv": "${workspaceFolder}",
+        "env": {
+          "JULIA_PKG_PRECOMPILE_AUTO": "0"
+        },
+        "stopOnEntry": false
+      }
+    ]
+  }

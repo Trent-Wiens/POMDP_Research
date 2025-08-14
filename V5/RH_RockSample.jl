@@ -1,3 +1,16 @@
+"""
+@article{egorov2017pomdps,
+  author  = {Maxim Egorov and Zachary N. Sunberg and Edward Balaban and Tim A. Wheeler and Jayesh K. Gupta and Mykel J. Kochenderfer},
+  title   = {{POMDP}s.jl: A Framework for Sequential Decision Making under Uncertainty},
+  journal = {Journal of Machine Learning Research},
+  year    = {2017},
+  volume  = {18},
+  number  = {26},
+  pages   = {1-5},
+  url     = {http://jmlr.org/papers/v18/16-300.html}
+}
+"""
+
 using POMDPs
 using POMDPTools
 using POMDPGifs
@@ -5,6 +18,7 @@ using NativeSARSOP
 using Random
 using RockSample
 using Cairo
+using DiscreteValueIteration
 
 function make_sub_POMDP(pos, map_size, rock_pos)
 
@@ -35,6 +49,8 @@ function make_sub_POMDP(pos, map_size, rock_pos)
 
 end
 
+rng = MersenneTwister(1)
+
 start_time = time_ns()
 
 pomdp = RockSamplePOMDP(map_size = (15,15),
@@ -48,18 +64,52 @@ states = ordered_states(pomdp)
 
 # make sub pomdp
 
-sub_pomdp = make_sub_POMDP([1,1], pomdp.map_size, pomdp.rocks_positions)
+sub_pomdp = make_sub_POMDP([3,4], pomdp.map_size, pomdp.rocks_positions)
+
+subpomdp_sates = ordered_states(sub_pomdp)
 
 # display(sub_pomdp)
 
 # solve sub POMDP
 
-solver = SARSOPSolver(precision=1e-3; max_time=10.0)
-policy = solve(solver, sub_pomdp)
+solver = SARSOPSolver(precision=1e-3; max_time=10.0) #use SARSOP solver
+policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
-init_state = initialstate(sub_pomdp)
+# init_state = initialstate(sub_pomdp)
+# next_action = action(policy, init_state) 
 
-next_action = action(policy, init_state) 
+state = nothing
+action = nothing
+obs = nothing
+rew = nothing
+
+# simulate the first step after the inital state
+
+for (s, a, o, r) in stepthrough(sub_pomdp, policy, "s,a,o,r", max_steps=1)
+    println("in state $s")
+    println("took action $a")
+    println("received observation $o and reward $r")
+
+    state = s
+    action = a
+    obs = o
+    rew = r
+end
+
+# get the next state after the iniital state
+trans = transition(sub_pomdp, state, action)
+
+# take the action
+
+
+
+
+# If O(sub pomdp) < O(pomdp) and O(receding horizon process) < O(pomdp)
+# O(sub pomdp) + O(receding horizon process) < O(pomdp) (?)
+
+
+# display(next_action)
+# display(init_state)
 
 # take action
 
@@ -69,7 +119,7 @@ next_action = action(policy, init_state)
 # elapsed_time = (end_time - start_time) / 1e9  # Convert from nanoseconds to seconds
 # println("Elapsed time: $elapsed_time seconds")
 
-# sim = GifSimulator(; filename="RockSample.gif", max_steps=30, rng=MersenneTwister(1), show_progress=false)
+# sim = GifSimulator(; filename="RockSample.gif", max_steps=1, rng=MersenneTwister(1), show_progress=true)
 # saved_gif = simulate(sim, sub_pomdp, policy)
 
 # println("gif saved to: $(saved_gif.filename)")
