@@ -29,6 +29,8 @@ function make_sub_POMDP(pos, map_size, rock_pos)
     maxy = pos[2] + horizon
     miny = pos[2] - horizon
 
+    # display(rock_pos)
+
     # Ensure the sub-POMDP's map size is within the bounds of the main POMDP
 
     sub_map = (max(minx, 1), max(miny, 1), min(maxx, map_size[1]), min(maxy, map_size[2]))
@@ -42,67 +44,146 @@ function make_sub_POMDP(pos, map_size, rock_pos)
     # exit()
 
     sub_pomdp = RockSamplePOMDP(map_size = sub_map_size,
-                            rocks_positions = sub_rocks, 
-                            init_pos = pos)
+                                rocks_positions = sub_rocks, 
+                                init_pos = pos)
+
+    # display(sub_pomdp)
 
     return sub_pomdp
 
 end
 
+function get_next_init_state(policy, pomdp, rock_probs)
+
+    # create an updater for the pollicy
+    up = updater(policy)
+    # get the initial belief state
+    b0 = initialize_belief(up, initialstate(pomdp)) # initialize belief state
+
+    # init_state = initialstate(sub_pomdp)
+    # next_action = action(policy, init_state) 
+
+    state = nothing
+    action = nothing
+    obs = nothing
+    rew = nothing
+
+    # simulate the first step after the inital state
+    for (s, a, o, r) in stepthrough(pomdp, policy, "s,a,o,r", max_steps=1)
+        println("in state $s")
+        println("took action $a")
+        println("received observation $o and reward $r")
+        println("=====================================================")
+
+        state = s
+        action = a
+        obs = o
+        rew = r
+    end
+
+
+    # get the next state after the iniital state
+    trans = transition(pomdp, state, action)
+
+    #initialise the belief after the first action has been taken
+    b1 = update(up, b0, action, obs)
+
+    # trim the belief state to only states that are in the same position as the next belief
+    S = eltype(b1.state_list)
+    next_states = S[]                  
+    next_probs  = Float64[]           
+
+    # Collect states/probs that share the current position
+    for (s, p) in zip(b1.state_list, b1.b)
+        if s.pos == trans.val.pos
+            push!(next_states, s)
+            push!(next_probs,  p)
+        end
+    end
+
+    display(typeof(next_states))
+    display(next_probs) 
+
+    for r in next_state.
+
+    next_init_state = SparseCat(next_states, next_probs)
+    display(next_init_state)
+
+    #return the belief state
+    return SparseCat(next_states, next_probs), rock_probs
+
+end
+
 rng = MersenneTwister(1)
 
-start_time = time_ns()
+start_time = time_ns() #start time
 
+# initial large POMDP of the whole space
 pomdp = RockSamplePOMDP(map_size = (15,15),
                         rocks_positions=[(2, 1), (3, 7), (8, 4), (6, 6), (1, 5), (4, 8), (10, 2), (6,12), (12, 14)],
                         sensor_efficiency=20.0,
                         discount_factor=0.95,
-                        good_rock_reward = 20.0)
+                        good_rock_reward = 20.0
+                        )
 
-states = ordered_states(pomdp)
+# states = ordered_states(pomdp)
 # display(states)
 
-# make sub pomdp
+#initialize rock_probs for belief state
+rock_probs = SparseCat(pomdp.rocks_positions, [0.5 for _ in 1:length(pomdp.rocks_positions)])
 
+# make sub pomdp based on starting position
 sub_pomdp = make_sub_POMDP([3,4], pomdp.map_size, pomdp.rocks_positions)
 
-subpomdp_sates = ordered_states(sub_pomdp)
-
+# subpomdp_sates = ordered_states(sub_pomdp)
 # display(sub_pomdp)
 
 # solve sub POMDP
-
-solver = SARSOPSolver(precision=1e-3; max_time=10.0) #use SARSOP solver
+solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
 policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
-# init_state = initialstate(sub_pomdp)
-# next_action = action(policy, init_state) 
+#get the next initial belief state
+next_init_state, rock_probs = get_next_init_state(policy, sub_pomdp, rock_probs)
 
-state = nothing
-action = nothing
-obs = nothing
-rew = nothing
+# set the initialstate to the next_init_state
+POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
 
-# simulate the first step after the inital state
+pos = next_init_state.vals[1].pos # get the position of the next initial state
 
-for (s, a, o, r) in stepthrough(sub_pomdp, policy, "s,a,o,r", max_steps=1)
-    println("in state $s")
-    println("took action $a")
-    println("received observation $o and reward $r")
+# to next pomdp
 
-    state = s
-    action = a
-    obs = o
-    rew = r
-end
+# for i in 1:20
 
-# get the next state after the iniital state
-trans = transition(sub_pomdp, state, action)
+#     println("Iteration: $i")
+
+#     println("Current Position: $pos")
+    
+#     # make sub pomdp
+#     sub_pomdp = make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions)
+
+#     # subpomdp_sates = ordered_states(sub_pomdp)
+#     # display(sub_pomdp)
+
+#     # make next_init_state
+
+    
+    
+#     # solve sub POMDP
+#     # solver = SARSOPSolver(precision=1e-3; max_time=10.0) #use SARSOP solver
+#     policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
+    
+#     #get the next initial belief state
+#     next_init_state = get_next_init_state(policy, sub_pomdp)
+
+#     pos = next_init_state.vals[1].pos # get the position of the next initial state
+    
+#     # set the initialstate to the next_init_state
+#     POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
+
+
+# end
 
 # take the action
-
-
-
 
 # If O(sub pomdp) < O(pomdp) and O(receding horizon process) < O(pomdp)
 # O(sub pomdp) + O(receding horizon process) < O(pomdp) (?)
@@ -123,3 +204,6 @@ trans = transition(sub_pomdp, state, action)
 # saved_gif = simulate(sim, sub_pomdp, policy)
 
 # println("gif saved to: $(saved_gif.filename)")
+
+
+
