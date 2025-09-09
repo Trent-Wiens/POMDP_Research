@@ -101,11 +101,48 @@ function get_next_init_state(policy, pomdp, rock_probs)
         end
     end
 
-    display(typeof(next_states))
+    display(next_states)
     display(next_probs) 
-
-    for r in next_state.
-
+    
+    thisSum = 0
+    
+    for r = 1:length(sub_pomdp.rocks_positions)
+        
+        i = 1
+        thisSum = 0
+        for s in next_states
+    
+            if s.rocks[r] == true
+                thisSum += next_probs[i]
+                # println("true")
+                # println(next_probs[i])
+                # println(thisSum)
+                # println("-----")
+            else
+                # println("false") 
+                # println(thisSum)
+                # println("-----")
+            end
+    
+            i += 1
+        end
+    
+        # println("total $r: $thisSum")
+    
+        # probs[r] = thisSum
+    
+        thisRock = sub_pomdp.rocks_positions[r]
+    
+        ind = findfirst(==(thisRock), rock_probs.vals)
+    
+        # print(thisRock)
+        # println(ind)
+    
+        rock_probs.probs[ind] = thisSum    
+    
+        # print(probs)
+    
+    end
     next_init_state = SparseCat(next_states, next_probs)
     display(next_init_state)
 
@@ -144,6 +181,8 @@ policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
 #get the next initial belief state
 next_init_state, rock_probs = get_next_init_state(policy, sub_pomdp, rock_probs)
+
+display(rock_probs)
 
 # set the initialstate to the next_init_state
 POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
