@@ -20,7 +20,7 @@ using RockSample
 using Cairo
 using DiscreteValueIteration
 
-function make_sub_POMDP(pos, map_size, rock_pos)
+function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
     horizon = 3
 
@@ -39,7 +39,7 @@ function make_sub_POMDP(pos, map_size, rock_pos)
 
     sub_map_size = (sub_map[3] - sub_map[1] + 1, sub_map[4] - sub_map[2] + 1)
 
-    # display(sub_rocks)
+    display(sub_rocks)
     # display(sub_map_size)
     # exit()
 
@@ -49,7 +49,40 @@ function make_sub_POMDP(pos, map_size, rock_pos)
 
     # display(sub_pomdp)
 
-    return sub_pomdp
+    numRock = length(sub_pomdp.rocks_positions)
+
+    rockings = zeros(numRock)
+
+    for i = 1:numRock #get the probabilities for just the rocks in the subpomdp
+        posit = sub_pomdp.rocks_positions[i] 
+        idx = findfirst(==(posit), rock_probs.vals)       
+        rockings[i] = isnothing(idx) ? 0.0 : rock_probs.probs[idx]
+    end
+
+    notRockings = ones(numRock) .- rockings #get the not rock probabilities
+
+    states = ordered_states(sub_pomdp) #get all the states in the subpomdp
+    indc = findall(s -> s.pos == pos, states) #get the indices of the states that share the same position as the init pos
+    init_states = states[indc]
+    init_probs = zeros(length(init_states)) #initialise the probabilities for the initial states
+
+    scaling = 1 / (numRock * 2^(numRock - 1)) #scaling factor to ensure the probabilities sum to 1
+    j = 1;
+
+    for s in init_states
+
+        mask = s.rocks
+
+        init_probs[j] = sum(mask[i] == 0 ? notRockings[i] : rockings[i] for i in 1:numRock) * scaling
+
+        j = j + 1
+    end
+
+    init_state = SparseCat(init_states, init_probs)
+
+    # print(init_state)
+
+    return sub_pomdp, init_state, rock_probs
 
 end
 
@@ -59,6 +92,7 @@ function get_next_init_state(policy, pomdp, rock_probs)
     up = updater(policy)
     # get the initial belief state
     b0 = initialize_belief(up, initialstate(pomdp)) # initialize belief state
+    # display(b0)
 
     # init_state = initialstate(sub_pomdp)
     # next_action = action(policy, init_state) 
@@ -85,6 +119,8 @@ function get_next_init_state(policy, pomdp, rock_probs)
     # get the next state after the iniital state
     trans = transition(pomdp, state, action)
 
+    display(trans)
+
     #initialise the belief after the first action has been taken
     b1 = update(up, b0, action, obs)
 
@@ -101,12 +137,12 @@ function get_next_init_state(policy, pomdp, rock_probs)
         end
     end
 
-    display(next_states)
-    display(next_probs) 
+    # display(next_states)
+    # display(next_probs) 
     
     thisSum = 0
     
-    for r = 1:length(sub_pomdp.rocks_positions)
+    for r = 1:length(pomdp.rocks_positions)
         
         i = 1
         thisSum = 0
@@ -131,7 +167,7 @@ function get_next_init_state(policy, pomdp, rock_probs)
     
         # probs[r] = thisSum
     
-        thisRock = sub_pomdp.rocks_positions[r]
+        thisRock = pomdp.rocks_positions[r]
     
         ind = findfirst(==(thisRock), rock_probs.vals)
     
@@ -144,10 +180,11 @@ function get_next_init_state(policy, pomdp, rock_probs)
     
     end
     next_init_state = SparseCat(next_states, next_probs)
-    display(next_init_state)
+    # display(next_init_state)
 
     #return the belief state
-    return SparseCat(next_states, next_probs), rock_probs
+    return next_init_state.vals[1].pos
+    # return SparseCat(next_states, next_probs), rock_probs
 
 end
 
@@ -169,25 +206,62 @@ pomdp = RockSamplePOMDP(map_size = (15,15),
 #initialize rock_probs for belief state
 rock_probs = SparseCat(pomdp.rocks_positions, [0.5 for _ in 1:length(pomdp.rocks_positions)])
 
-# make sub pomdp based on starting position
-sub_pomdp = make_sub_POMDP([3,4], pomdp.map_size, pomdp.rocks_positions)
+# # make sub pomdp based on starting position
+# sub_pomdp, init_state = make_sub_POMDP([3,4], pomdp.map_size, pomdp.rocks_positions, rock_probs)
+# POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
 
-# subpomdp_sates = ordered_states(sub_pomdp)
-# display(sub_pomdp)
 
-# solve sub POMDP
-solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
-policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
+# # subpomdp_sates = ordered_states(sub_pomdp)
+# # display(sub_pomdp)
 
-#get the next initial belief state
-next_init_state, rock_probs = get_next_init_state(policy, sub_pomdp, rock_probs)
+# # solve sub POMDP
+# solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
+# policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
-display(rock_probs)
+# #get the next initial belief state
+# next_init_state, rock_probs = get_next_init_state(policy, sub_pomdp, rock_probs)
 
-# set the initialstate to the next_init_state
-POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
+# display(rock_probs)
 
-pos = next_init_state.vals[1].pos # get the position of the next initial state
+# # set the initialstate to the next_init_state
+# POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
+
+# pos = next_init_state.vals[1].pos # get the position of the next initial state
+
+for i in 1:20
+
+    global pomdp
+    global rock_probs
+    global next_init_state
+    global pos
+    if i == 1
+        pos = [1,1]
+    else
+        # pos = next_init_state.vals[1].pos
+    end
+
+    println("Iteration: $i")
+    println("Current Position: $pos")
+
+    sub_pomdp, init_state, rock_probs= make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs)
+
+    POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
+
+    solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
+    policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
+
+    #get the next initial belief state
+    pos = get_next_init_state(policy, sub_pomdp, rock_probs)
+
+    display(rock_probs)
+    # POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
+
+    # pos = next_init_state.vals[1].pos # get the position of the next initial state
+
+
+    println("============================================")
+
+end
 
 # to next pomdp
 
@@ -243,6 +317,7 @@ pos = next_init_state.vals[1].pos # get the position of the next initial state
 # saved_gif = simulate(sim, sub_pomdp, policy)
 
 # println("gif saved to: $(saved_gif.filename)")
+
 
 
 
