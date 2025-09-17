@@ -37,6 +37,27 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
 	sub_rocks = [(x, y) for (x, y) in rock_pos if sub_map[1] ≤ x ≤ sub_map[3] && sub_map[2] ≤ y ≤ sub_map[4]]
 
+    # display(sub_rocks)
+    # display(typeof(sub_rocks))
+
+    indices =  findall(x -> Tuple(x) in sub_rocks, rock_probs.vals)
+    # display(indices)
+
+    probs = rock_probs.probs[indices]
+    display(probs)
+    if sum(probs) == 0
+        display(probs)
+
+        #find the nearest rock outside the horizon and add it to sub_rocks
+
+        
+
+
+    end
+
+
+    # display(probs_of_subrocks)
+
 	# if isempty(sub_rocks) || sum()
 	#     dists = [abs(pos[1] - r[1]) + abs(pos[2] - r[2]) for r in sub_rock_notHoriz]
 	#     nearest_rock = sub_rock_notHoriz[argmin(dists)]
@@ -44,21 +65,14 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
 	# end
 
-	if isempty(sub_rocks) || all(begin
-		idx = findfirst(==(r), rock_probs.vals)
-		isnothing(idx) || rock_probs.probs[idx] == 0.0
-	end for r in sub_rocks)
+	if isempty(sub_rocks) 
 
 		# fallback: pick the nearest eligible rock (prob > 0) from outside the horizon
 		sub_rock_notHoriz = [(x, y) for (x, y) in rock_pos if !((sub_map[1] ≤ x ≤ sub_map[3]) && (sub_map[2] ≤ y ≤ sub_map[4]))]
-		if !isempty(sub_rock_notHoriz)
+
 			dists = [abs(pos[1] - r[1]) + abs(pos[2] - r[2]) for r in sub_rock_notHoriz]
 			nearest_rock = sub_rock_notHoriz[argmin(dists)]
 			idx = findfirst(==(nearest_rock), rock_probs.vals)
-			if !isnothing(idx) && rock_probs.probs[idx] > 0.0
-				push!(sub_rocks, nearest_rock)
-			end
-		end
 	end
 
 	sub_map_size = (sub_map[3] - sub_map[1] + 1, sub_map[4] - sub_map[2] + 1)
