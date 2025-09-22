@@ -20,20 +20,46 @@ using RockSample
 using Cairo
 using DiscreteValueIteration
 
+function global2local(pos, sub_map)
+
+    local_x = pos[1] - sub_map[1] + 1
+    local_y = pos[2] - sub_map[2] + 1
+
+    return [local_x, local_y]
+
+end
+
+function local2global(pos, sub_map)
+
+    global_x = pos[1] + sub_map[1] - 1
+    global_y = pos[2] + sub_map[2] - 1
+
+    return [global_x, global_y]
+
+end
+
 function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
 	horizon = 3
 
-	maxx = pos[1] + horizon
-	minx = pos[1] - horizon
-	maxy = pos[2] + horizon
-	miny = pos[2] - horizon
+	maxx = min(pos[1] + horizon, map_size[1])
+	minx = max(pos[1] - horizon, 1)
+	maxy = min(pos[2] + horizon, map_size[2])
+	miny = max(pos[2] - horizon, 1)
+
+    # display("minx = $minx, maxx = $maxx, miny = $miny, maxy = $maxy")
 
 	# display(rock_pos)
 
 	# Ensure the sub-POMDP's map size is within the bounds of the main POMDP
 
 	sub_map = (max(minx, 1), max(miny, 1), min(maxx, map_size[1]), min(maxy, map_size[2]))
+
+    # display("Sub-map boundaries: $sub_map")
+    # display("current position: $pos")
+    # pos = global2local(pos, sub_map)
+    # display("Local position in sub-map: $pos")
+
 
 	sub_rocks = [(x, y) for (x, y) in rock_pos if sub_map[1] ≤ x ≤ sub_map[3] && sub_map[2] ≤ y ≤ sub_map[4]]
 
@@ -44,36 +70,28 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
     # display(indices)
 
     probs = rock_probs.probs[indices]
-    display(probs)
+    # display(probs)
     if sum(probs) == 0
-        display(probs)
+        # display(probs)
+
+        sub_rocks_notinHoriz = [(x, y) for (x, y) in rock_pos if !((sub_map[1] ≤ x ≤ sub_map[3]) && (sub_map[2] ≤ y ≤ sub_map[4]))]
+
+        # display(sub_rocks_notinHoriz)
 
         #find the nearest rock outside the horizon and add it to sub_rocks
 
-        
+        dists = [abs(pos[1] - r[1]) + abs(pos[2] - r[2]) for r in sub_rocks_notinHoriz if !((sub_map[1] ≤ r[1] ≤ sub_map[3]) && (sub_map[2] ≤ r[2] ≤ sub_map[4]))]
+
+        nearest_rock = sub_rocks_notinHoriz[argmin(dists)]
+        # display(nearest_rock)
+        # display(typeof(nearest_rock))
+
+        # nearest_rock = Tuple(nearest_rock)
+
+        push!(sub_rocks, nearest_rock)
 
 
     end
-
-
-    # display(probs_of_subrocks)
-
-	# if isempty(sub_rocks) || sum()
-	#     dists = [abs(pos[1] - r[1]) + abs(pos[2] - r[2]) for r in sub_rock_notHoriz]
-	#     nearest_rock = sub_rock_notHoriz[argmin(dists)]
-	#     push!(sub_rocks, nearest_rock)
-
-	# end
-
-	if isempty(sub_rocks) 
-
-		# fallback: pick the nearest eligible rock (prob > 0) from outside the horizon
-		sub_rock_notHoriz = [(x, y) for (x, y) in rock_pos if !((sub_map[1] ≤ x ≤ sub_map[3]) && (sub_map[2] ≤ y ≤ sub_map[4]))]
-
-			dists = [abs(pos[1] - r[1]) + abs(pos[2] - r[2]) for r in sub_rock_notHoriz]
-			nearest_rock = sub_rock_notHoriz[argmin(dists)]
-			idx = findfirst(==(nearest_rock), rock_probs.vals)
-	end
 
 	sub_map_size = (sub_map[3] - sub_map[1] + 1, sub_map[4] - sub_map[2] + 1)
 
@@ -83,7 +101,7 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
 	sub_pomdp = RockSamplePOMDP(map_size = sub_map_size,
 		rocks_positions = sub_rocks,
-		init_pos = pos)
+		init_pos = global2local(pos, sub_map))
 
 	# display(sub_pomdp)
 
@@ -115,7 +133,7 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 		mask = s.rocks
 
 		init_probs[j] = prod(mask[i] == 0 ? notRockings[i] : rockings[i] for i in 1:numRock) #* scaling
-		println("State: $(s), Probability: $(init_probs[j])")
+		# println("State: $(s), Probability: $(init_probs[j])")
 
 		j = j + 1
 	end
@@ -124,17 +142,17 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
 	# print(init_state)
 
-	return sub_pomdp, init_state, rock_probs
+	return sub_pomdp, init_state, rock_probs, sub_map
 
 end
 
-function get_next_init_state(policy, pomdp, rock_probs)
+function get_next_init_state(policy, pomdp, rock_probs, sub_map)
 
 	# create an updater for the pollicy
 	up = updater(policy)
 	# get the initial belief state
 	b0 = initialize_belief(up, initialstate(pomdp)) # initialize belief state
-	# display(b0)
+	# show(stdout, "text/plain", b0)
 
 	# init_state = initialstate(pomdp)
 	# next_action = POMDPs.action(policy, init_state)
@@ -159,11 +177,21 @@ function get_next_init_state(policy, pomdp, rock_probs)
 		rew = r
 	end
 
+    # display("State after action: $state")
+    # display("Action taken: $action")
 
-	# get the next state after the iniital state
+	# # get the next state after the iniital state
+
+    # display("+++++++++++++++++++++++++++++++")
+    # display(pomdp.map_size)
+    # display(pos)
+    # display(state)
+    # display(action)
+    # display("+++++++++++++++++++++++++++++++")
+
 	trans = transition(pomdp, state, action)
 
-	display(trans)
+	# display(trans)
 
 	#initialise the belief after the first action has been taken
 	b1 = update(up, b0, action, obs)
@@ -172,6 +200,10 @@ function get_next_init_state(policy, pomdp, rock_probs)
 	S           = eltype(b1.state_list)
 	next_states = S[]
 	next_probs  = Float64[]
+
+    # display(b1)
+    # display(trans.val.pos)
+
 
 	# Collect states/probs that share the current position
 	for (s, p) in zip(b1.state_list, b1.b)
@@ -182,15 +214,19 @@ function get_next_init_state(policy, pomdp, rock_probs)
 	end
 
 	# display(next_states)
-	display(next_probs)
+	# display(next_probs)
 
 	thisSum = 0
 
 	for r ∈ 1:length(pomdp.rocks_positions)
 
+        # display("Evaluating rock $r at position $(pomdp.rocks_positions[r])")
+
 		i = 1
 		thisSum = 0
 		for s in next_states
+
+            # display("Considering state $s with probability $(next_probs[i])")
 
 			if s.rocks[r] == true
 				thisSum += next_probs[i]
@@ -226,8 +262,15 @@ function get_next_init_state(policy, pomdp, rock_probs)
 	next_init_state = SparseCat(next_states, next_probs)
 	# display(next_init_state)
 
+    position = next_init_state.vals[1].pos
+
+    println("Local Position: $position ")
+
+    globpos = local2global(position, sub_map)
+    println("Global Position: $globpos")
+
 	#return the belief state
-	return next_init_state.vals[1].pos
+	return globpos
 	# return SparseCat(next_states, next_probs), rock_probs
 
 end
@@ -287,7 +330,7 @@ for i in 1:20
 	println("Iteration: $i")
 	println("Current Position: $pos")
 
-	sub_pomdp, init_state, rock_probs = make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs)
+	sub_pomdp, init_state, rock_probs, sub_map = make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs)
 
 	POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
 
@@ -295,8 +338,9 @@ for i in 1:20
 	policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
 	#get the next initial belief state
-	pos = get_next_init_state(policy, sub_pomdp, rock_probs)
+	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map)
 
+    # println("New Pos: $pos")
 	display(rock_probs)
 	# POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
 
@@ -306,5 +350,6 @@ for i in 1:20
 	println("============================================")
 
 end
+
 
 
