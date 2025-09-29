@@ -22,23 +22,57 @@ using DiscreteValueIteration
 
 function global2local(pos, sub_map)
 
-    local_x = pos[1] - sub_map[1] + 1
-    local_y = pos[2] - sub_map[2] + 1
+	local_x = pos[1] - sub_map[1] + 1
+	local_y = pos[2] - sub_map[2] + 1
 
-    return [local_x, local_y]
+	return [local_x, local_y]
 
 end
 
 function local2global(pos, sub_map)
 
-    global_x = pos[1] + sub_map[1] - 1
-    global_y = pos[2] + sub_map[2] - 1
+	global_x = pos[1] + sub_map[1] - 1
+	global_y = pos[2] + sub_map[2] - 1
 
-    return [global_x, global_y]
+	return [global_x, global_y]
 
 end
 
-function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
+function actionNum2word(action)
+
+	if action == 1
+		return "Sample"
+	elseif action == 2
+		return "North"
+	elseif action == 3
+		return "East"
+	elseif action == 4
+		return "South"
+	elseif action == 5
+		return "West"
+	elseif action >= 6
+		return "Sense Rock $(action - 5)"
+	else
+		return "Invalid Action"
+	end
+
+end
+
+function obsNum2word(obs)
+
+	if obs == 1
+		return "Good"
+	elseif obs == 2
+		return "Bad"
+	elseif obs == 3
+		return "None"
+	else
+		return "Invalid Observation"
+	end
+
+end
+
+function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 	horizon = 3
 
@@ -47,7 +81,7 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 	maxy = min(pos[2] + horizon, map_size[2])
 	miny = max(pos[2] - horizon, 1)
 
-    # display("minx = $minx, maxx = $maxx, miny = $miny, maxy = $maxy")
+	# display("minx = $minx, maxx = $maxx, miny = $miny, maxy = $maxy")
 
 	# display(rock_pos)
 
@@ -55,53 +89,74 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
 	sub_map = (max(minx, 1), max(miny, 1), min(maxx, map_size[1]), min(maxy, map_size[2]))
 
-    # display("Sub-map boundaries: $sub_map")
-    # display("current position: $pos")
-    # pos = global2local(pos, sub_map)
-    # display("Local position in sub-map: $pos")
+	# display("Sub-map boundaries: $sub_map")
+	# display("current position: $pos")
+	# pos = global2local(pos, sub_map)
+	# display("Local position in sub-map: $pos")
 
 
 	sub_rocks = [(x, y) for (x, y) in rock_pos if sub_map[1] ≤ x ≤ sub_map[3] && sub_map[2] ≤ y ≤ sub_map[4]]
 
-    # display(sub_rocks)
-    # display(typeof(sub_rocks))
+	# display(sub_rocks)
+	# display(typeof(sub_rocks))
 
-    indices =  findall(x -> Tuple(x) in sub_rocks, rock_probs.vals)
-    # display(indices)
+	indices = findall(x -> Tuple(x) in sub_rocks, rock_probs.vals)
+	# display(indices)
 
-    probs = rock_probs.probs[indices]
-    # display(probs)
-    if sum(probs) == 0
-        # display(probs)
+	probs = rock_probs.probs[indices]
+	# display(probs)
+	if sum(probs) == 0
+		# display(probs)
 
-        sub_rocks_notinHoriz = [(x, y) for (x, y) in rock_pos if !((sub_map[1] ≤ x ≤ sub_map[3]) && (sub_map[2] ≤ y ≤ sub_map[4]))]
+		sub_rocks_notinHoriz = [(x, y) for (x, y) in rock_pos if !((sub_map[1] ≤ x ≤ sub_map[3]) && (sub_map[2] ≤ y ≤ sub_map[4]))]
 
-        # display(sub_rocks_notinHoriz)
+		# display(sub_rocks_notinHoriz)
 
-        #find the nearest rock outside the horizon and add it to sub_rocks
+		#find the nearest rock outside the horizon and add it to sub_rocks
 
-        dists = [abs(pos[1] - r[1]) + abs(pos[2] - r[2]) for r in sub_rocks_notinHoriz if !((sub_map[1] ≤ r[1] ≤ sub_map[3]) && (sub_map[2] ≤ r[2] ≤ sub_map[4]))]
+		dists = [abs(pos[1] - r[1]) + abs(pos[2] - r[2]) for r in sub_rocks_notinHoriz if !((sub_map[1] ≤ r[1] ≤ sub_map[3]) && (sub_map[2] ≤ r[2] ≤ sub_map[4]))]
 
-        nearest_rock = sub_rocks_notinHoriz[argmin(dists)]
-        # display(nearest_rock)
-        # display(typeof(nearest_rock))
+		nearest_rock = sub_rocks_notinHoriz[argmin(dists)]
+		# display(nearest_rock)
+		# display(typeof(nearest_rock))
 
-        # nearest_rock = Tuple(nearest_rock)
+		# nearest_rock = Tuple(nearest_rock)
 
-        push!(sub_rocks, nearest_rock)
+		push!(sub_rocks, nearest_rock)
 
 
-    end
+	end
 
 	sub_map_size = (sub_map[3] - sub_map[1] + 1, sub_map[4] - sub_map[2] + 1)
 
+	println("Rocks: $sub_rocks")
 	# display(sub_rocks)
 	# display(sub_map_size)
-	# exit()
+
+	locpos = global2local(pos, sub_map)
+
+	# if the pos is anything but the edge of the total map, the exit reward is 0
+	if  pos[1] == map_size[1] || pos[2] == map_size[2]
+		exitrew = pomdp.exit_reward
+	else
+		exitrew = 0.0
+	end
+
+	# println("localpos: $locpos")
+
+	# println("pos: $pos")
+	# println("local pos: $locpos")
+	# display(sub_map)
 
 	sub_pomdp = RockSamplePOMDP(map_size = sub_map_size,
 		rocks_positions = sub_rocks,
-		init_pos = global2local(pos, sub_map))
+		init_pos = locpos,
+		sensor_efficiency = pomdp.sensor_efficiency,
+		discount_factor = pomdp.discount_factor,
+		good_rock_reward = pomdp.good_rock_reward,
+		bad_rock_penalty = pomdp.bad_rock_penalty,
+		exit_reward = exitrew,
+		sensor_use_penalty = pomdp.sensor_use_penalty) # if available
 
 	# display(sub_pomdp)
 
@@ -121,11 +176,12 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 	# println("Not rock probabilities in subpomdp: $notRockings")
 
 	states = ordered_states(sub_pomdp) #get all the states in the subpomdp
-	indc = findall(s -> s.pos == pos, states) #get the indices of the states that share the same position as the init pos
+	# display(states)
+	indc = findall(s -> s.pos == locpos, states) #get the indices of the states that share the same position as the init pos
 	init_states = states[indc]
+	# display(init_states)
 	init_probs = zeros(length(init_states)) #initialise the probabilities for the initial states
 
-	scaling = 1 / (numRock * 2^(numRock - 1)) #scaling factor to ensure the probabilities sum to 1
 	j = 1;
 
 	for s in init_states
@@ -146,15 +202,18 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs)
 
 end
 
-function get_next_init_state(policy, pomdp, rock_probs, sub_map)
+function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList)
 
 	# create an updater for the pollicy
+	initpos = thisPomdp.init_pos
+	# println("Initial Position in Sub-POMDP: $initpos")
 	up = updater(policy)
 	# get the initial belief state
-	b0 = initialize_belief(up, initialstate(pomdp)) # initialize belief state
+	b0 = initialize_belief(up, initialstate(thisPomdp)) # initialize belief state
 	# show(stdout, "text/plain", b0)
 
-	# init_state = initialstate(pomdp)
+	# init_state = initialstate(thisPomdp)
+	# println("Initial state: $init_state")
 	# next_action = POMDPs.action(policy, init_state)
 	# println("next action: $next_action")
 
@@ -165,11 +224,11 @@ function get_next_init_state(policy, pomdp, rock_probs, sub_map)
 	rew = nothing
 
 	# simulate the first step after the inital state
-	for (s, a, o, r) in stepthrough(pomdp, policy, "s,a,o,r", max_steps = 1)
-		println("in state $s")
-		println("took action $a")
-		println("received observation $o and reward $r")
-		println("=====================================================")
+	for (s, a, o, r) in stepthrough(thisPomdp, policy, "s,a,o,r", max_steps = 1)
+		# println("in state $s")
+		println("took action $(actionNum2word(a))")
+		println("received observation $(obsNum2word(o)) and reward $r")
+		println("----------------------------------------------------")
 
 		state = s
 		action = a
@@ -177,32 +236,52 @@ function get_next_init_state(policy, pomdp, rock_probs, sub_map)
 		rew = r
 	end
 
-    # display("State after action: $state")
-    # display("Action taken: $action")
+	# display("State after action: $state")
+	# display("Action taken: $action")
 
 	# # get the next state after the iniital state
 
-    # display("+++++++++++++++++++++++++++++++")
-    # display(pomdp.map_size)
-    # display(pos)
-    # display(state)
-    # display(action)
-    # display("+++++++++++++++++++++++++++++++")
+	# display("+++++++++++++++++++++++++++++++")
+	# display(thisPomdp.map_size)
+	# display(pos)
+	# display(state)
+	# display(action)
+	# display("+++++++++++++++++++++++++++++++")
 
-	trans = transition(pomdp, state, action)
+	trans = transition(thisPomdp, state, action)
 
-	# display(trans)
+	actionWord = actionNum2word(action)
+
+	push!(actionList, actionWord)
+
+	if POMDPs.isterminal(thisPomdp, trans.val)
+
+		return "TERMINAL"
+
+	end
+
+	# locpos = trans.val.pos
+
+	# display("Transition result: $trans")
+
+	# println("local trans pos: $locpos")
 
 	#initialise the belief after the first action has been taken
 	b1 = update(up, b0, action, obs)
+
+	val = value(policy, b0)
+	val2 = value(policy, b1)
+
+	println("Value of initial belief: $val")
+	println("Value of next belief: $val2")
 
 	# trim the belief state to only states that are in the same position as the next belief
 	S           = eltype(b1.state_list)
 	next_states = S[]
 	next_probs  = Float64[]
 
-    # display(b1)
-    # display(trans.val.pos)
+	# display(b1)
+	# display(trans.val.pos)
 
 
 	# Collect states/probs that share the current position
@@ -218,15 +297,15 @@ function get_next_init_state(policy, pomdp, rock_probs, sub_map)
 
 	thisSum = 0
 
-	for r ∈ 1:length(pomdp.rocks_positions)
+	for r ∈ 1:length(thisPomdp.rocks_positions)
 
-        # display("Evaluating rock $r at position $(pomdp.rocks_positions[r])")
+		# display("Evaluating rock $r at position $(thisPomdp.rocks_positions[r])")
 
 		i = 1
 		thisSum = 0
 		for s in next_states
 
-            # display("Considering state $s with probability $(next_probs[i])")
+			# display("Considering state $s with probability $(next_probs[i])")
 
 			if s.rocks[r] == true
 				thisSum += next_probs[i]
@@ -243,11 +322,11 @@ function get_next_init_state(policy, pomdp, rock_probs, sub_map)
 			i += 1
 		end
 
-		println("total $r: $thisSum")
+		# println("total $r: $thisSum")
 
 		# probs[r] = thisSum
 
-		thisRock = pomdp.rocks_positions[r]
+		thisRock = thisPomdp.rocks_positions[r]
 
 		ind = findfirst(==(thisRock), rock_probs.vals)
 
@@ -262,16 +341,15 @@ function get_next_init_state(policy, pomdp, rock_probs, sub_map)
 	next_init_state = SparseCat(next_states, next_probs)
 	# display(next_init_state)
 
-    position = next_init_state.vals[1].pos
+	position = next_init_state.vals[1].pos
 
-    println("Local Position: $position ")
+	# println("Local Position: $position ")
 
-    globpos = local2global(position, sub_map)
-    println("Global Position: $globpos")
+	globpos = local2global(position, sub_map)
+	# println("Global Position: $globpos")
 
-	#return the belief state
+	#return the global position
 	return globpos
-	# return SparseCat(next_states, next_probs), rock_probs
 
 end
 
@@ -280,76 +358,80 @@ rng = MersenneTwister(1)
 start_time = time_ns() #start time
 
 # initial large POMDP of the whole space
-pomdp = RockSamplePOMDP(map_size = (15, 15),
-	rocks_positions = [(2, 1), (3, 7), (8, 4), (6, 6), (1, 5), (4, 8), (10, 2), (6, 12), (12, 14)],
+# pomdp = RockSamplePOMDP(map_size = (15, 15),
+# 	rocks_positions = [(1,2), (3, 7), (8, 4), (6, 6), (1, 5), (4, 8), (10, 2), (6, 12), (12, 14)],
+# 	sensor_efficiency = 20.0,
+# 	discount_factor = 0.95,
+# 	good_rock_reward = 20.0,
+# )
+
+pomdp = RockSamplePOMDP(map_size = (7, 7),
+	rocks_positions = [(1,2), (3, 7), (6, 6), (1, 5)],
 	sensor_efficiency = 20.0,
 	discount_factor = 0.95,
 	good_rock_reward = 20.0,
 )
-
-# states = ordered_states(pomdp)
-# display(states)
-
 #initialize rock_probs for belief state
 rock_probs = SparseCat(pomdp.rocks_positions, [0.5 for _ in 1:length(pomdp.rocks_positions)])
 
-# # make sub pomdp based on starting position
-# sub_pomdp, init_state = make_sub_POMDP([3,4], pomdp.map_size, pomdp.rocks_positions, rock_probs)
-# POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
+actionList = []
+posList = []
 
-
-# # subpomdp_sates = ordered_states(sub_pomdp)
-# # display(sub_pomdp)
-
-# # solve sub POMDP
+# # solve full POMDP and create GIF
 # solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
-# policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
+# policy = solve(solver, pomdp) # get policy using SARSOP solver
 
-# #get the next initial belief state
-# next_init_state, rock_probs = get_next_init_state(policy, sub_pomdp, rock_probs)
+# println("Creating simulation GIF...")
+# sim = GifSimulator(
+# 	filename="DroneRockSample.gif",
+# 	max_steps=100,  # Reduced steps for testing
+# 	rng=MersenneTwister(1),
+# 	show_progress=true  # Enable progress display
+# )
+# saved_gif = simulate(sim, pomdp, policy)
+# println("GIF saved to: $(saved_gif.filename)")
 
-# display(rock_probs)
+for i in 1:100
 
-# # set the initialstate to the next_init_state
-# POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
-
-# pos = next_init_state.vals[1].pos # get the position of the next initial state
-
-for i in 1:20
-
-	global pomdp
-	global rock_probs
-	global next_init_state
 	global pos
 	if i == 1
-		pos = [1, 1]
-	else
-		# pos = next_init_state.vals[1].pos
+		pos = [1,1]
 	end
+
 
 	println("Iteration: $i")
 	println("Current Position: $pos")
 
-	sub_pomdp, init_state, rock_probs, sub_map = make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs)
+	sub_pomdp, init_state, rock_probs, sub_map = make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs, pomdp)
 
+	# display(init_state)
+
+	# redefine initial state from the original function from RockSample
 	POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
 
 	solver = SARSOPSolver(precision = 1e-3; max_time = 10.0, verbose = false) #use SARSOP solver
 	policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
 	#get the next initial belief state
-	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map)
+	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map, actionList)
+	push!(posList, pos)
 
-    # println("New Pos: $pos")
-	display(rock_probs)
-	# POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = next_init_state
-
-	# pos = next_init_state.vals[1].pos # get the position of the next initial state
-
+	if pos == "TERMINAL"
+		println("Reached terminal state. Exiting loop.")
+		println("Actions taken: ")
+		count = 1;
+		for a in actionList
+			println("	",	a, " -> ", posList[count])
+			count += 1
+		end
+		break
+	end
 
 	println("============================================")
 
 end
+
+
 
 
 
