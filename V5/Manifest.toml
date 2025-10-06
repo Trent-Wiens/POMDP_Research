@@ -2,7 +2,7 @@
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "f2652b7f4f366b2e67a717bdfea03653a971b6b2"
+project_hash = "d1cc09f09c48a3adcd31349444a9a9e8d0fad35e"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -662,6 +662,12 @@ version = "1.10.4"
 git-tree-sha1 = "1d36ef11a9aaf1e8b74dacc6a731dd1de8fd493d"
 uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
 version = "1.3.0"
+
+[[deps.QMDP]]
+deps = ["DiscreteValueIteration", "POMDPLinter", "POMDPTools", "POMDPs", "Random"]
+git-tree-sha1 = "b091e80ccfe13370838973a9ba87bf77807d0baa"
+uuid = "3aa3ecc9-5a5d-57c8-8188-3e47bd8068d2"
+version = "0.1.8"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]

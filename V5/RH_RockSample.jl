@@ -19,6 +19,7 @@ using Random
 using RockSample
 using Cairo
 using DiscreteValueIteration
+using QMDP
 
 function global2local(pos, sub_map)
 
@@ -129,18 +130,14 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 	sub_map_size = (sub_map[3] - sub_map[1] + 1, sub_map[4] - sub_map[2] + 1)
 
+	is_global_right_edge = (sub_map[3] == map_size[1])
+
+
 	println("Rocks: $sub_rocks")
 	# display(sub_rocks)
 	# display(sub_map_size)
 
 	locpos = global2local(pos, sub_map)
-
-	# if the pos is anything but the edge of the total map, the exit reward is 0
-	if  pos[1] == map_size[1] || pos[2] == map_size[2]
-		exitrew = pomdp.exit_reward
-	else
-		exitrew = 0.0
-	end
 
 	# println("localpos: $locpos")
 
@@ -155,7 +152,8 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 		discount_factor = pomdp.discount_factor,
 		good_rock_reward = pomdp.good_rock_reward,
 		bad_rock_penalty = pomdp.bad_rock_penalty,
-		exit_reward = exitrew,
+		exit_reward = pomdp.exit_reward,
+		# exit_reward = is_global_right_edge ? pomdp.exit_reward : 0.0,
 		sensor_use_penalty = pomdp.sensor_use_penalty) # if available
 
 	# display(sub_pomdp)
@@ -194,6 +192,14 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 		j = j + 1
 	end
 
+	total_prob = sum(init_probs)
+	if total_prob <= 0
+	    # fallback: uniform over init states
+	    init_probs .= 1.0 / length(init_probs)
+	else
+	    init_probs ./= total_prob
+	end
+
 	init_state = SparseCat(init_states, init_probs)
 
 	# print(init_state)
@@ -202,14 +208,15 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 end
 
-function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList)
+function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList, init_state)
 
 	# create an updater for the pollicy
 	initpos = thisPomdp.init_pos
 	# println("Initial Position in Sub-POMDP: $initpos")
 	up = updater(policy)
 	# get the initial belief state
-	b0 = initialize_belief(up, initialstate(thisPomdp)) # initialize belief state
+	# b0 = initialize_belief(up, initialstate(thisPomdp)) # initialize belief state
+	b0 = init_state
 	# show(stdout, "text/plain", b0)
 
 	# init_state = initialstate(thisPomdp)
@@ -370,6 +377,7 @@ pomdp = RockSamplePOMDP(map_size = (7, 7),
 	sensor_efficiency = 20.0,
 	discount_factor = 0.95,
 	good_rock_reward = 20.0,
+	bad_rock_penalty = -5.0,
 )
 #initialize rock_probs for belief state
 rock_probs = SparseCat(pomdp.rocks_positions, [0.5 for _ in 1:length(pomdp.rocks_positions)])
@@ -379,6 +387,7 @@ posList = []
 
 # # solve full POMDP and create GIF
 # solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
+# solver = QMDPSolver(max_iterations=20, belres=1e-3, verbose=false) #use QMDP solver
 # policy = solve(solver, pomdp) # get policy using SARSOP solver
 
 # println("Creating simulation GIF...")
@@ -391,12 +400,14 @@ posList = []
 # saved_gif = simulate(sim, pomdp, policy)
 # println("GIF saved to: $(saved_gif.filename)")
 
-for i in 1:100
+for i in 1:20
 
 	global pos
 	if i == 1
-		pos = [1,1]
+		pos = [1,5]
 	end
+
+	display(rock_probs)
 
 
 	println("Iteration: $i")
@@ -410,13 +421,14 @@ for i in 1:100
 	POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
 
 	solver = SARSOPSolver(precision = 1e-3; max_time = 10.0, verbose = false) #use SARSOP solver
+	# solver = QMDPSolver(max_iterations=20, belres=1e-3, verbose=false) #use QMDP solver
 	policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
 	#get the next initial belief state
-	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map, actionList)
+	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map, actionList, init_state)
 	push!(posList, pos)
 
-	if pos == "TERMINAL"
+	if pos == "TERMINAL" || i == 20
 		println("Reached terminal state. Exiting loop.")
 		println("Actions taken: ")
 		count = 1;
