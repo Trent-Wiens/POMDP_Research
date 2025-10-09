@@ -20,6 +20,8 @@ using RockSample
 using Cairo
 using DiscreteValueIteration
 using QMDP
+using DataFrames
+using CSV
 
 function global2local(pos, sub_map)
 
@@ -125,6 +127,8 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 		push!(sub_rocks, nearest_rock)
 
+		print("!!New Rock Added!!")
+
 
 	end
 
@@ -194,10 +198,10 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 	total_prob = sum(init_probs)
 	if total_prob <= 0
-	    # fallback: uniform over init states
-	    init_probs .= 1.0 / length(init_probs)
+		# fallback: uniform over init states
+		init_probs .= 1.0 / length(init_probs)
 	else
-	    init_probs ./= total_prob
+		init_probs ./= total_prob
 	end
 
 	init_state = SparseCat(init_states, init_probs)
@@ -243,6 +247,7 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 		rew = r
 	end
 
+
 	# display("State after action: $state")
 	# display("Action taken: $action")
 
@@ -278,6 +283,42 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 
 	val = value(policy, b0)
 	val2 = value(policy, b1)
+
+	print("---------------+-----------------------+---------------------\n")
+
+	b_west = update(up, b0, 5, 3) #west, none
+	b_east = update(up, b0, 3, 3) #east, none
+	b_north = update(up, b0, 2, 3) #north, none
+	b_south = update(up, b0, 4, 3) #south, none
+	b_sample = update(up, b0, 1, 3) #sample, none
+
+	v_west = value(policy, b_west)
+	v_east = value(policy, b_east)
+	v_north = value(policy, b_north)
+	v_south = value(policy, b_south)
+	v_sample = value(policy, b_sample)
+	println("Value of west belief: $v_west")
+	println("Value of east belief: $v_east")
+	println("Value of north belief: $v_north")
+	println("Value of south belief: $v_south")
+	println("Value of sample belief: $v_sample")
+
+	#sense rock beliefs
+	for i = 1:length(thisPomdp.rocks_positions)
+		if rock_probs.probs[i] == 0
+			continue
+		end
+		b_sense_good = update(up, b0, 5 + i, 1) #sense rock i, good
+		b_sense_bad = update(up, b0, 5 + i, 2) #sense rock i, bad
+		v_sense_good = value(policy, b_sense_good)
+		v_sense_bad = value(policy, b_sense_bad)
+		println("Value of sense rock $i good belief: $v_sense_good")
+		println("Value of sense rock $i bad belief: $v_sense_bad")
+	end
+
+	print("---------------+-----------------------+---------------------\n")
+
+
 
 	println("Value of initial belief: $val")
 	println("Value of next belief: $val2")
@@ -362,88 +403,146 @@ end
 
 rng = MersenneTwister(1)
 
-start_time = time_ns() #start time
+# start_time = time_ns() #start time
 
-# initial large POMDP of the whole space
-# pomdp = RockSamplePOMDP(map_size = (15, 15),
-# 	rocks_positions = [(1,2), (3, 7), (8, 4), (6, 6), (1, 5), (4, 8), (10, 2), (6, 12), (12, 14)],
-# 	sensor_efficiency = 20.0,
-# 	discount_factor = 0.95,
-# 	good_rock_reward = 20.0,
-# )
+#loop through avery initial position
 
-pomdp = RockSamplePOMDP(map_size = (7, 7),
-	rocks_positions = [(1,2), (3, 7), (6, 6), (1, 5)],
-	sensor_efficiency = 20.0,
-	discount_factor = 0.95,
-	good_rock_reward = 20.0,
-	bad_rock_penalty = -5.0,
-)
-#initialize rock_probs for belief state
-rock_probs = SparseCat(pomdp.rocks_positions, [0.5 for _ in 1:length(pomdp.rocks_positions)])
+# Master tables to collect all runs
+# Master long-format tables
+# actions_df   = DataFrame(RunLabel = String[], RunIdx = Int[], Step = Int[], Action = String[])
+# positions_df = DataFrame(RunLabel = String[], RunIdx = Int[], Step = Int[], Position = String[])
 
-actionList = []
-posList = []
+# for j ∈ 1:49
 
-# # solve full POMDP and create GIF
-# solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
-# solver = QMDPSolver(max_iterations=20, belres=1e-3, verbose=false) #use QMDP solver
-# policy = solve(solver, pomdp) # get policy using SARSOP solver
+	# x = (j - 1) % 7 + 1   # column
+    # y = div(j - 1, 7) + 1 # row
+    # pos = [x, y]
 
-# println("Creating simulation GIF...")
-# sim = GifSimulator(
-# 	filename="DroneRockSample.gif",
-# 	max_steps=100,  # Reduced steps for testing
-# 	rng=MersenneTwister(1),
-# 	show_progress=true  # Enable progress display
-# )
-# saved_gif = simulate(sim, pomdp, policy)
-# println("GIF saved to: $(saved_gif.filename)")
+	# initial_pos = copy(pos)
+	# run_label = "$(initial_pos[1]),$(initial_pos[2])"
+	
+	# println("Starting new initial position: $pos")
 
-for i in 1:20
-
-	global pos
-	if i == 1
-		pos = [1,5]
-	end
-
-	display(rock_probs)
-
-
-	println("Iteration: $i")
-	println("Current Position: $pos")
-
-	sub_pomdp, init_state, rock_probs, sub_map = make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs, pomdp)
-
-	# display(init_state)
-
-	# redefine initial state from the original function from RockSample
-	POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
-
-	solver = SARSOPSolver(precision = 1e-3; max_time = 10.0, verbose = false) #use SARSOP solver
-	# solver = QMDPSolver(max_iterations=20, belres=1e-3, verbose=false) #use QMDP solver
-	policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
-
-	#get the next initial belief state
-	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map, actionList, init_state)
-	push!(posList, pos)
-
-	if pos == "TERMINAL" || i == 20
-		println("Reached terminal state. Exiting loop.")
-		println("Actions taken: ")
-		count = 1;
-		for a in actionList
-			println("	",	a, " -> ", posList[count])
-			count += 1
-		end
-		break
-	end
-
+	actionListList = []
 	println("============================================")
 
-end
+	# initial large POMDP of the whole space
+	# pomdp = RockSamplePOMDP(map_size = (15, 15),
+	# 	rocks_positions = [(1,2), (3, 7), (8, 4), (6, 6), (1, 5), (4, 8), (10, 2), (6, 12), (12, 14)],
+	# 	sensor_efficiency = 20.0,
+	# 	discount_factor = 0.95,
+	# 	good_rock_reward = 20.0,
+	# )
+
+	pomdp = RockSamplePOMDP(map_size = (7, 7),
+		rocks_positions = [(1, 2), (3, 7), (6, 6), (1, 5)],
+		sensor_efficiency = 20.0,
+		discount_factor = 0.95,
+		good_rock_reward = 20.0,
+		bad_rock_penalty = -5.0,
+	)
+	#initialize rock_probs for belief state
+	rock_probs = SparseCat(pomdp.rocks_positions, [0.5 for _ in 1:length(pomdp.rocks_positions)])
+
+	actionList = []
+	posList = []
+
+	# # solve full POMDP and create GIF
+	solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false) #use SARSOP solver
+	policy = solve(solver, pomdp) # get policy using SARSOP solver
+
+
+	# println("Creating simulation GIF...")
+	# sim = GifSimulator(
+	# 	filename="DroneRockSample.gif",
+	# 	max_steps=100,  # Reduced steps for testing
+	# 	rng=MersenneTwister(1),
+	# 	show_progress=true  # Enable progress display
+	# )
+	# saved_gif = simulate(sim, pomdp, policy)
+	# println("GIF saved to: $(saved_gif.filename)")
+
+	for i in 1:20
+
+		global pos
+		if i == 1
+			pos = [6,6]
+		end
+
+		display(rock_probs)
+
+
+		println("Iteration: $i")
+		println("Current Position: $pos")
+
+		sub_pomdp, init_state, rock_probs, sub_map = make_sub_POMDP(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs, pomdp)
+
+		# display(init_state)
+
+		# redefine initial state from the original function from RockSample
+		POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = init_state
+
+		solver = SARSOPSolver(precision = 1e-3; max_time = 10.0, verbose = false) #use SARSOP solver
+		# solver = QMDPSolver(max_iterations=20, belres=1e-3, verbose=false) #use QMDP solver
+		policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
+
+		#get the next initial belief state
+		pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map, actionList, init_state)
+		push!(posList, pos)
+
+		# if pos == "TERMINAL" || i == 20
+		# 	println("Reached terminal state. Exiting loop.")
+		# 	println("Actions taken: ")
+		# 	count = 1;
+		# 	for a in actionList
+		# 		println("	", a, " -> ", posList[count])
+		# 		count += 1
+		# 	end
+		# 	break
+		# end
+
+		if pos == "TERMINAL" || i == 20
+			println("Reached terminal state. Exiting loop.")
+			println("Actions taken: ")
+		
+			# how many steps have positions recorded
+			nsteps = min(length(actionList), length(posList))
+		
+			for step_idx in 1:nsteps
+				a = actionList[step_idx]
+				p = posList[step_idx]  # expected like [x, y]
+				println("    ", a, " -> ", p)
+		
+				# # Append to actions (long)
+				# push!(actions_df, (run_label, j, step_idx, a))
+		
+				# # Append to positions (long) as "[x,y]" string
+				# if p isa Vector{Int} && length(p) == 2
+				# 	push!(positions_df, (run_label, j, step_idx, "[$(p[1]),$(p[2])]"))
+				# end
+			end
+		
+			break
+		end
 
 
 
+		println("============================================")
+
+	end
+
+	# push!(actionListList, actionList)
+	
+
+# end
+
+# Actions: rows = Step, columns = RunLabel, values = Action
+# wide_actions = unstack(actions_df, :Step, :RunLabel, :Action)
+
+# # Positions: rows = Step, columns = RunLabel, values = "[x,y]" string
+# wide_positions = unstack(positions_df, :Step, :RunLabel, :Position)
+
+# CSV.write("wide_actions_1.csv", wide_actions)
+# CSV.write("wide_positions_1.csv", wide_positions)
 
 

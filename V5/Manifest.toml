@@ -2,7 +2,7 @@
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "d1cc09f09c48a3adcd31349444a9a9e8d0fad35e"
+project_hash = "79487bef49df889f1456c2ad1c93753347535443"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -34,6 +34,12 @@ git-tree-sha1 = "1b96ea4a01afe0ea4090c5c8039690672dd13f2e"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.9+0"
 
+[[deps.CSV]]
+deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
+git-tree-sha1 = "deddd8725e5e1cc49ee205a1964256043720a6c3"
+uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+version = "0.10.15"
+
 [[deps.Cairo]]
 deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
 git-tree-sha1 = "71aa551c5c33f1a4415867fe06b7844faadb0ae9"
@@ -45,6 +51,12 @@ deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jl
 git-tree-sha1 = "fde3bf89aead2e723284a8ff9cdf5b551ed700e8"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.5+0"
+
+[[deps.CodecZlib]]
+deps = ["TranscodingStreams", "Zlib_jll"]
+git-tree-sha1 = "962834c22b66e32aa10f7611c08c8ca4e20749a9"
+uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
+version = "0.7.8"
 
 [[deps.ColorSchemes]]
 deps = ["ColorTypes", "ColorVectorSpace", "Colors", "FixedPointNumbers", "PrecompileTools", "Random"]
@@ -203,6 +215,20 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers",
 git-tree-sha1 = "3a948313e7a41eb1db7a1e733e6335f17b4ab3c4"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "7.1.1+0"
+
+[[deps.FilePathsBase]]
+deps = ["Compat", "Dates"]
+git-tree-sha1 = "3bab2c5aa25e7840a4b065805c0cdfc01f3068d2"
+uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
+version = "0.9.24"
+
+    [deps.FilePathsBase.extensions]
+    FilePathsBaseMmapExt = "Mmap"
+    FilePathsBaseTestExt = "Test"
+
+    [deps.FilePathsBase.weakdeps]
+    Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
+    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -871,6 +897,11 @@ git-tree-sha1 = "1feb45f88d133a655e001435632f019a9a1bcdb6"
 uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
 version = "0.1.1"
 
+[[deps.TranscodingStreams]]
+git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
+uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
+version = "0.11.3"
+
 [[deps.Tricks]]
 git-tree-sha1 = "372b90fe551c019541fafc6ff034199dc19c8436"
 uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
@@ -910,6 +941,17 @@ version = "3.8.1"
     IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
     Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[[deps.WeakRefStrings]]
+deps = ["DataAPI", "InlineStrings", "Parsers"]
+git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
+uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
+version = "1.4.2"
+
+[[deps.WorkerUtilities]]
+git-tree-sha1 = "cd1659ba0d57b71a464a29e64dbc67cfe83d54e7"
+uuid = "76eceee3-57b5-4d4a-8e66-0e911cebbf60"
+version = "1.6.1"
 
 [[deps.Xorg_libX11_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxcb_jll", "Xorg_xtrans_jll"]
