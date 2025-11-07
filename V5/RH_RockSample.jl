@@ -79,7 +79,30 @@ function obsNum2word(obs)
 
 end
 
-function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp; low_thresh=0.30, high_thresh=0.50, max_extra=1)
+function add_nearest_rock(sub_rocks, rock_pos)
+
+	# println("new rock being added")
+
+	not_in_sub = [x for x in rock_pos if !(Tuple(x) in sub_rocks)]
+	minDist = 10000000
+	chosen_rock = nothing
+	for rock in not_in_sub
+		thisDist = abs(pos[1] - rock[1]) + abs(pos[2] - rock[2])
+		if thisDist < minDist
+			minDist = thisDist
+			chosen_rock = rock
+			break
+		end
+	end
+
+	push!(sub_rocks, Tuple(chosen_rock))
+
+	return sub_rocks
+
+
+end
+
+function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
     horizon = 3
 
     maxx = min(pos[1] + horizon, map_size[1])
@@ -89,25 +112,30 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp; low_thresh=0
 
     sub_map = (max(minx, 1), max(miny, 1), min(maxx, map_size[1]), min(maxy, map_size[2]))
 
+	# rocks_reloaded = SVector(SVector(1, 2), SVector(3, 7), SVector(6, 6), SVector(1, 5))
 
-	manhhattan_dist = [abs(pos[1] - rock[1]) + abs(pos[2] - rock[2]) for rock in rock_pos]
 
-	println("rock dist: ", manhhattan_dist)
-
+	# rock_dists = [abs(pos[1] - rock[1]) + abs(pos[2] - rock[2]) for rock in rock_pos]
 
 
     # Start with rocks already inside the horizon (GLOBAL coords)
     sub_rocks = [(x, y) for (x, y) in rock_pos if sub_map[1] ≤ x ≤ sub_map[3] && sub_map[2] ≤ y ≤ sub_map[4]]
 
+	# sub_rock_indices = [findfirst(x -> Tuple(x) == rock, rock_pos) for rock in sub_rocks]
+
+	println("subrocks: ", sub_rocks)
+
+
+
 
     # sub_rocks = map(x -> Tuple(x), sub_rocks) |> collect  # Vector{Tuple{Int,Int}}
 
     # # Build a helper to read the current global posterior for any rock coordinate
-    # global_vals_as_tuples = Tuple.(rock_probs.vals)
-    # get_prob = r -> begin
-    #     gi = findfirst(==(r), global_vals_as_tuples)
-    #     gi === nothing ? 0.0 : rock_probs.probs[gi]
-    # end
+    global_vals_as_tuples = Tuple.(rock_probs.vals)
+    get_prob = r -> begin
+        gi = findfirst(==(r), global_vals_as_tuples)
+        gi === nothing ? 0.0 : rock_probs.probs[gi]
+    end
 
     # # Current posteriors for the in-horizon rocks (if empty, treat as zeros)
     # sub_probs = isempty(sub_rocks) ? Float64[] : [get_prob(r) for r in sub_rocks]
@@ -154,18 +182,73 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp; low_thresh=0
     #     end
     # end
 
+	# make sure there are rocks in the sub pomdp
+	# if isempty(sub_rocks)
+	# 	println("no rocks in sub")
+	# 	sub_rocks = add_nearest_rock(sub_rocks, rock_pos)
+	# end
+
+	#make sure each rock has a big enough prob
+	rock_thresh = 0.25
+
+	numrocks = length(rock_pos)
+
+	rockpos = rock_probs.vals
+	rockprob = rock_probs.probs
+
+	highrocks = Tuple{Int64, Int64}[]
+	lowrocks = Tuple{Int64, Int64}[]
+
+	for i in 1:length(rockprob)
+
+		if rockprob[i] > rock_thresh
+			push!(highrocks, Tuple(rockpos[i]))
+
+		else
+			push!(lowrocks, Tuple(rockpos[i]))
+
+		end
+
+	end
+
+	println(highrocks)
+	println(lowrocks)
+
+	# println(typeof(highrocks))
+
+	# valuesiosca = intersect(highrocks, sub_rocks)
+
+	# println(typeof(sub_rocks), typeof(highrocks))
+
+	# # print(typeof(sub_rocks))
+
+	# println("rocks not in highrocks: ", valuesiosca)
+
+
+	if isempty(intersect(highrocks, sub_rocks))
+
+		println("rock not in high rocks")
+
+		# sub_rocks does not contain any highrocks (above the threshold)
+
+		sub_rocks = add_nearest_rock(sub_rocks, highrocks)
+
+	end
+
+
+
     # Sub-map size
     sub_map_size = (sub_map[3] - sub_map[1] + 1, sub_map[4] - sub_map[2] + 1)
 
     # Convert GLOBAL sub_rocks to LOCAL coordinates for the sub-POMDP
     local_sub_rocks = Tuple.(global2local.(sub_rocks, Ref(sub_map)))
 
-	print(local_sub_rocks)
+	# print(local_sub_rocks)
 
     # Local init pos
     locpos = global2local(pos, sub_map)
 
-	print(sub_rocks)
+	# print(sub_rocks)
 
     # Build the sub-POMDP
     sub_pomdp = RockSamplePOMDP(
@@ -181,9 +264,9 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp; low_thresh=0
         sensor_use_penalty = pomdp.sensor_use_penalty
     )
 
-	print(sub_pomdp.rocks_positions)
+	println("sub_pomdp rocks: ", sub_pomdp.rocks_positions)
 
-    # Map each LOCAL rock index in the sub-POMDP back to its GLOBAL index (for posterior updates later)
+    # # Map each LOCAL rock index in the sub-POMDP back to its GLOBAL index (for posterior updates later)
     numRock = length(sub_pomdp.rocks_positions)
     global_idx_map = Vector{Union{Int, Nothing}}(undef, numRock)
     for i in 1:numRock
