@@ -123,7 +123,7 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 	# sub_rock_indices = [findfirst(x -> Tuple(x) == rock, rock_pos) for rock in sub_rocks]
 
-	println("subrocks: ", sub_rocks)
+	# println("subrocks: ", sub_rocks)
 
 
 
@@ -199,7 +199,7 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 	highrocks = Tuple{Int64, Int64}[]
 	lowrocks = Tuple{Int64, Int64}[]
 
-	for i in 1:length(rockprob)
+	for i in 1:numrocks
 
 		if rockprob[i] > rock_thresh
 			push!(highrocks, Tuple(rockpos[i]))
@@ -211,8 +211,8 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 	end
 
-	println(highrocks)
-	println(lowrocks)
+	# println(highrocks)
+	# println(lowrocks)
 
 	# println(typeof(highrocks))
 
@@ -225,20 +225,46 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 	# println("rocks not in highrocks: ", valuesiosca)
 
 
-	if isempty(intersect(highrocks, sub_rocks))
 
-		println("rock not in high rocks")
+	if isempty(intersect(highrocks, sub_rocks)) && !isempty(highrocks)
+
+		# println("rock not in high rocks")
 
 		# sub_rocks does not contain any highrocks (above the threshold)
 
 		sub_rocks = add_nearest_rock(sub_rocks, highrocks)
 
+		minsubx = sub_map[1]
+		minsuby = sub_map[2]
+		maxsubx = sub_map[3]
+		maxsuby = sub_map[4]
+
+		for rock in sub_rocks
+
+			maxsubx = max(rock[1], maxsubx)
+			maxsuby = max(rock[2], maxsuby)
+			minsubx = min(rock[1], minsubx)
+			minsuby = min(rock[2], minsuby)
+
+
+		end
+
+		# sub_map[3] = maxsubx
+		# sub_map[4] = maxsuby
+
+		sub_map = [minsubx, minsuby, maxsubx, maxsuby]
+
+
 	end
+
+	# println("submap: ", sub_map)
 
 
 
     # Sub-map size
     sub_map_size = (sub_map[3] - sub_map[1] + 1, sub_map[4] - sub_map[2] + 1)
+
+	# println("submapsize: ", sub_map_size)
 
     # Convert GLOBAL sub_rocks to LOCAL coordinates for the sub-POMDP
     local_sub_rocks = Tuple.(global2local.(sub_rocks, Ref(sub_map)))
@@ -257,7 +283,7 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
         init_pos = locpos,
         sensor_efficiency = pomdp.sensor_efficiency,
         discount_factor = pomdp.discount_factor,
-        good_rock_reward = pomdp.good_rock_reward,
+        good_rock_reward = pomdp.good_rock_reward*2,
         bad_rock_penalty = pomdp.bad_rock_penalty,
         step_penalty = pomdp.step_penalty,
         exit_reward = pomdp.exit_reward,
@@ -549,9 +575,26 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 
 	trans = transition(thisPomdp, state, action)
 
-	actionWord = actionNum2word(action)
+	if action < 6
+		actionWord = actionNum2word(action)
 
-	push!(actionList, actionWord)
+		push!(actionList, actionWord)
+	else
+
+		# actionWord = actionNum2word(action)
+
+		rocksensed = thisPomdp.rocks_positions[action - 5]
+
+		observation = obsNum2word(obs)
+
+		actionWord = "Sense Rock at $(local2global(rocksensed, sub_map)) with Observation $observation"
+
+		push!(actionList, actionWord)
+
+
+	end
+
+
 
 	if POMDPs.isterminal(thisPomdp, trans.val)
 
