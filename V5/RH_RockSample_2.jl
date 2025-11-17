@@ -320,7 +320,7 @@ function main()
         sub_pomdp, init_belief, sub_map = make_sub_pomdp(pos, pomdp.map_size, pomdp.rocks_positions, rock_probs, pomdp)
 
         # Set the initial belief for this sub-POMDP run (consumed by NativeSARSOP)
-RS_INIT_BELIEF[] = init_belief
+        RS_INIT_BELIEF[] = init_belief
 
         solver = SARSOPSolver(precision=1e-3; max_time=10.0, verbose=false)
         policy = solve(solver, sub_pomdp)

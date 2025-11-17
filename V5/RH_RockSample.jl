@@ -13,6 +13,7 @@
 
 using POMDPs
 using POMDPTools
+using POMDPTools.Policies: PlaybackPolicy, RandomPolicy
 using POMDPGifs
 using POMDPModels
 using NativeSARSOP
@@ -26,6 +27,7 @@ using Statistics
 # using QMDP
 # using DataFrames
 # using CSV
+
 
 function global2local(pos, sub_map)
 
@@ -259,6 +261,13 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
 
 	# println("submap: ", sub_map)
 
+	#you always need at least one rock for the RockSample problem
+	if isempty(sub_rocks)
+
+		sub_rocks = add_nearest_rock(sub_rocks, rock_pos)
+
+	end
+
 
 
     # Sub-map size
@@ -283,7 +292,7 @@ function make_sub_POMDP(pos, map_size, rock_pos, rock_probs, pomdp)
         init_pos = locpos,
         sensor_efficiency = pomdp.sensor_efficiency,
         discount_factor = pomdp.discount_factor,
-        good_rock_reward = pomdp.good_rock_reward*2,
+        good_rock_reward = pomdp.good_rock_reward,
         bad_rock_penalty = pomdp.bad_rock_penalty,
         step_penalty = pomdp.step_penalty,
         exit_reward = pomdp.exit_reward,
@@ -512,7 +521,7 @@ end
 
 # end
 
-function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList, init_state, global_idx_map)
+function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList, actionListNums, init_state, global_idx_map)
 
 	# create an updater for the pollicy
 	initpos = thisPomdp.init_pos
@@ -549,39 +558,41 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 		rew = r
 	end
 
+	# hr = HistoryRecorder(max_steps=1)
+	# hist = simulate(hr, thisPomdp, policy, DiscreteUpdater(thisPomdp), init_state)
 
-	# display("State after action: $state")
-	# display("Action taken: $action")
+	# sh = collect(POMDPTools.state_hist(hist))
+	# ah = collect(POMDPTools.action_hist(hist))
+	# oh = collect(POMDPTools.observation_hist(hist))
+	# rh = collect(POMDPTools.reward_hist(hist))
 
-	# display("type of state: $(typeof(state))")
+	# if isempty(sh) || isempty(ah) || isempty(oh) || isempty(rh)
+	#     error("HistoryRecorder returned empty traces; check that max_steps>=1 and that the simulator advanced a step.")
+	# end
 
-	global glob = state
+	# state = sh[end]
+	# action = ah[end]
+	# obs    = oh[end]
+	# rew    = rh[end]
 
-	# all_true_state = state
-	# all_true_state.rocks .= true
-
-	# display("All true state: $all_true_state")
-
-
-
-	# # get the next state after the iniital state
-
-	# display("+++++++++++++++++++++++++++++++")
-	# display(thisPomdp.map_size)
-	# display(pos)
-	# display(state)
-	# display(action)
-	# display("+++++++++++++++++++++++++++++++")
+	# println("in state $state")
+	# println("took action $(actionNum2word(action))")
+	# println("received observation $(obsNum2word(obs)) and reward $rew")
+	# println("----------------------------------------------------")	
 
 	trans = transition(thisPomdp, state, action)
 
 	if action < 6
+
+		push!(actionListNums, action)
+
 		actionWord = actionNum2word(action)
 
 		push!(actionList, actionWord)
 	else
 
 		# actionWord = actionNum2word(action)
+
 
 		rocksensed = thisPomdp.rocks_positions[action - 5]
 
@@ -590,6 +601,14 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 		actionWord = "Sense Rock at $(local2global(rocksensed, sub_map)) with Observation $observation"
 
 		push!(actionList, actionWord)
+
+		globalRockPos = local2global(rocksensed, sub_map)
+
+		ind = findfirst(==(globalRockPos), rock_probs.vals)
+
+		globalActionNum = ind + 5  # sensing action number in global POMDP
+
+		push!(actionListNums, globalActionNum)
 
 
 	end
@@ -611,46 +630,8 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 	#initialise the belief after the first action has been taken
 	b1 = update(up, b0, action, obs)
 
-	val = value(policy, b0)
-	val2 = value(policy, b1)
-
-
-	# print("---------------+-----------------------+---------------------\n")
-
-	# b_west = update(up, b0, 5, 3) #west, none
-	# b_east = update(up, b0, 3, 3) #east, none
-	# b_north = update(up, b0, 2, 3) #north, none
-	# b_south = update(up, b0, 4, 3) #south, none
-	# b_sample = update(up, b0, 1, 3) #sample, none
-
-	# v_west = value(policy, b_west)
-	# v_east = value(policy, b_east)
-	# v_north = value(policy, b_north)
-	# v_south = value(policy, b_south)
-	# v_sample = value(policy, b_sample)
-	# println("Value of west belief: $v_west")
-	# println("Value of east belief: $v_east")
-	# println("Value of north belief: $v_north")
-	# println("Value of south belief: $v_south")
-	# println("Value of sample belief: $v_sample")
-
-	# #sense rock beliefs
-	# for i = 1:length(thisPomdp.rocks_positions)
-	# 	if rock_probs.probs[i] == 0
-	# 		continue
-	# 	end
-	# 	b_sense_good = update(up, b0, 5 + i, 1) #sense rock i, good
-	# 	b_sense_bad = update(up, b0, 5 + i, 2) #sense rock i, bad
-	# 	v_sense_good = value(policy, b_sense_good)
-	# 	v_sense_bad = value(policy, b_sense_bad)
-	# 	println("Value of sense rock $i good belief: $v_sense_good")
-	# 	println("Value of sense rock $i bad belief: $v_sense_bad")
-	# end
-
-	# print("---------------+-----------------------+---------------------\n")
-
-
-
+	# val = value(policy, b0)
+	# val2 = value(policy, b1)
 	# println("Value of initial belief: $val")
 	# println("Value of next belief: $val2")
 
@@ -661,7 +642,6 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 
 	# display(b1)
 	# display(trans.val.pos)
-
 
 	# Collect states/probs that share the current position
 	for (s, p) in zip(b1.state_list, b1.b)
@@ -675,48 +655,6 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 	# display(next_probs)
 
 	thisSum = 0
-
-	# for r ∈ 1:length(thisPomdp.rocks_positions)
-
-	# 	# display("Evaluating rock $r at position $(thisPomdp.rocks_positions[r])")
-
-	# 	i = 1
-	# 	thisSum = 0
-	# 	for s in next_states
-
-	# 		# display("Considering state $s with probability $(next_probs[i])")
-
-	# 		if s.rocks[r] == true
-	# 			thisSum += next_probs[i]
-	# 			# println("true")
-	# 			# println(next_probs[i])
-	# 			# println(thisSum)
-	# 			# println("-----")
-	# 		else
-	# 			# println("false") 
-	# 			# println(thisSum)
-	# 			# println("-----")
-	# 		end
-
-	# 		i += 1
-	# 	end
-
-	# 	# println("total $r: $thisSum")
-
-	# 	# probs[r] = thisSum
-
-	# 	thisRock = thisPomdp.rocks_positions[r]
-
-	# 	ind = findfirst(==(thisRock), rock_probs.vals)
-
-	# 	# print(thisRock)
-	# 	# println(ind)
-
-	# 	rock_probs.probs[ind] = thisSum
-
-	# 	# print(probs)
-
-	# end
 
 	for r in 1:length(thisPomdp.rocks_positions)  # r is LOCAL rock index
 		thisSum = 0.0
@@ -747,31 +685,8 @@ function get_next_init_state(policy, thisPomdp, rock_probs, sub_map, actionList,
 
 end
 
-# rng = MersenneTwister(1)
-
-# start_time = time_ns() #start time
-
-#loop through avery initial position
-
-# Master tables to collect all runs
-# Master long-format tables
-# actions_df   = DataFrame(RunLabel = String[], RunIdx = Int[], Step = Int[], Action = String[])
-# positions_df = DataFrame(RunLabel = String[], RunIdx = Int[], Step = Int[], Position = String[])
-
-# for j ∈ 1:49
-
-# x = (j - 1) % 7 + 1   # column
-# y = div(j - 1, 7) + 1 # row
-# pos = [x, y]
-
-# initial_pos = copy(pos)
-# run_label = "$(initial_pos[1]),$(initial_pos[2])"
-
-# println("Starting new initial position: $pos")
-
-actionListList = []
-# println("\n\n\n\n\n\n\n\n\n")
-
+# for multiple pomdps
+# actionListList = []
 
 # initial large POMDP of the whole space
 # pomdp = RockSamplePOMDP(map_size = (15, 15),
@@ -781,8 +696,8 @@ actionListList = []
 # 	good_rock_reward = 20.0,
 # )
 
-pomdp = RockSamplePOMDP(map_size = (7, 7),
-	rocks_positions = [(3, 7), (6, 6), (1, 5), (4,3)],
+pomdp = RockSamplePOMDP(map_size = (15, 15),
+	rocks_positions = [(6, 14), (12, 12), (2, 10), (4,3), (5,10), (8,9)],
 	# rocks_positions = [(6,6)], 
 	init_pos = (1,1),
 	sensor_efficiency = 20.0,
@@ -794,7 +709,10 @@ pomdp = RockSamplePOMDP(map_size = (7, 7),
 rock_probs = SparseCat(pomdp.rocks_positions, [0.5 for _ in 1:length(pomdp.rocks_positions)])
 
 actionList = []
+actionListNums = []
 posList = []
+
+rawInitState = POMDPs.initialstate(pomdp)
 
 # new_pomdp = RockSamplePOMDP(map_size = (7, 7),
 # 	rocks_positions = [(3, 7), (4,3)],
@@ -805,11 +723,9 @@ posList = []
 # 	bad_rock_penalty = -5.0
 # )
 
-
-
-# # # solve full POMDP and create GIF
+# # solve full POMDP and create GIF
 # solver = SARSOPSolver(precision = 1e-3; max_time = 10.0, verbose = false) #use SARSOP solver
-# policy = solve(solver, new_pomdp) # get policy using SARSOP solver
+# policy = solve(solver, pomdp) # get policy using SARSOP solver
 
 # println("Creating simulation GIF...")
 # sim = GifSimulator(
@@ -818,166 +734,12 @@ posList = []
 # 	rng=MersenneTwister(1),
 # 	show_progress=true  # Enable progress display
 # )
-# saved_gif = simulate(sim, new_pomdp, policy)
+# saved_gif = simulate(sim, pomdp, policy)
 # println("GIF saved to: $(saved_gif.filename)")
 
 # exit()
 
-# # you already have: policy = solve(solver, pomdp)
-# as = policy.alphas
-# K = length(as)
-# N = length(as[1])
-# @assert all(length(α)==N for α in as)
-
-# w, h = pomdp.map_size
-# positions = [(x, y) for x in 1:w for y in 1:h]
-
-
-
-# # Build a lookup: (x, y, is_good)::(Int,Int,Bool) -> state index
-# states_list = collect(states(pomdp))
-# index_by = Dict{Tuple{Int, Int, Bool}, Int}()
-# for s in states_list
-# 	x = s.pos[1];
-# 	y = s.pos[2]
-# 	good = s.rocks[1] == true
-# 	idx = stateindex(pomdp, s)
-# 	index_by[(x, y, good)] = idx
-# end
-
-# # collect (pos => (ig, ib)) only for positions that have both good and bad states
-# valid = Tuple{Tuple{Int, Int}, Tuple{Int, Int}}[]
-# for (x, y) in positions
-# 	ig = get(index_by, (x, y, true), nothing)
-# 	ib = get(index_by, (x, y, false), nothing)
-# 	if ig !== nothing && ib !== nothing
-# 		push!(valid, ((x, y), (ig, ib)))
-# 	end
-# end
-
-# if isempty(valid)
-#     @warn "No valid (pos,good/bad) states found to plot. \
-# This can happen if stateindex throws for all positions (e.g., custom enumerator, \
-# terminal-only policy, or mismatched RSState). Double-check RSState and stateindex."
-# else
-#     ts = range(0.0, 1.0, length = 200)  # p = Pr(rock is good)
-
-#     # --- Flip the grid visually: sort by y descending, then x ascending ---
-#     # (1,1) ends up bottom-left; (w,h) top-right.
-#     sort!(valid, by = v -> (h - v[1][2], v[1][1]))
-
-#     max_plots = length(valid)
-#     rows = max(1, ceil(Int, sqrt(max_plots)))
-#     cols = max(1, ceil(Int, max_plots / rows))
-
-#     # We'll build the main collage with *no* legends/titles.
-#     mainplt = plot(layout = (rows, cols), size = (1800, 1200), legend = false)
-
-#     # Prepare action mapping for labels and consistent colors
-#     has_actions = hasproperty(policy, :action_map)
-#     acts = has_actions ? policy.action_map : fill(0, length(as))  # 0 -> unknown action if missing
-
-#     # Map action -> label and color (stable across subplots)
-#     using StatsBase
-#     uniq_actions = unique(acts)
-#     pal = palette(:auto)
-#     color_for = Dict{Int,Any}()
-#     for (i, a) in enumerate(uniq_actions)
-#         color_for[a] = pal[mod1(i, length(pal))]
-#     end
-#     action_label(a::Int) = a == 0 ? "α (no map)" : actionNum2word(a)
-
-#     # Draw all subplots
-#     for (idx, (pos, (ig, ib))) in enumerate(valid)
-#         # each α line along p, and max envelope
-#         y_lines = [[α[ig]*p + α[ib]*(1 - p) for p in ts] for α in as]
-#         y_env   = [maximum((α[ig]*p + α[ib]*(1 - p) for α in as)) for p in ts]
-
-#         # First alpha (no label, thin, translucent)
-#         plot!(mainplt, ts, y_lines[1], lw = 2, label = false,
-#               xlabel = "", ylabel = "", subplot = idx)
-
-#         # Rest of alphas with action-based labels/colors
-#         for k in 2:length(as)
-#             a = acts[k]
-#             plot!(mainplt, ts, y_lines[k], lw = 2, label = false,
-#                   color = get(color_for, a, :black), subplot = idx)
-#         end
-
-#         # Upper envelope (quiet gray), no legend
-#         plot!(mainplt, ts, y_env, alpha = 0.25, lw = 10, label = false,
-#               subplot = idx, color = :yellow)
-#     end
-
-#     # --- Build a separate legend panel (single global legend) ---
-#     # We draw one tiny plot that only exists to show one line per action with labels.
-#     legplt = plot(size = (400, 1200), legend = :topleft,
-#                   framestyle = :none, xticks = false, yticks = false)
-#     for a in uniq_actions
-#         # Dummy data to create a legend entry in the desired color
-#         plot!(legplt, ts, fill(0.0, length(ts)),
-#               lw = 2, label = action_label(a), color = color_for[a])
-#     end
-# 	plot!(legplt, ts, fill(0.0, length(ts)),
-#       lw = 10, alpha = 0.18, color = :yellow, label = "Upper Envelope")
-#     # Also add an entry for the envelope if you want it in the legend:
-#     # plot!(legplt, ts, fill(0.0, length(ts)), lw = 3, color = :gray, label = "upper envelope")
-
-#     # Compose main plot + legend panel
-#     # plt = plot(mainplt, legplt, layout = grid(1, 2, widths = [0.80, 0.20]))
-
-	
-
-
-# display(plt)
-# end
-
-# savefig(plt, "alpha_vectors.png")
-
-# # After you finish creating `mainplt` and `legplt` (before combining them into plt)
-# outdir = "alpha_vectors"
-# # Create one legend block with all action labels + envelope
-# legplt = plot(size = (400, 400), legend = :bottom,
-#               framestyle = :none, xticks = false, yticks = false)
-# for a in uniq_actions
-#     plot!(legplt, ts, fill(0.0, length(ts)),
-#           lw = 2, label = action_label(a), color = color_for[a])
-# end
-# plot!(legplt, ts, fill(0.0, length(ts)),
-#       lw = 10, alpha = 0.18, color = :yellow, label = "upper envelope")
-
-# # save each subplot individually
-# for (idx, (pos, (ig, ib))) in enumerate(valid)
-#     # extract the subplot as a standalone plot
-#     subplt = plot(size=(800,600), legend=:bottomright)
-    
-#     # envelope first (highlighter)
-#     y_env = [maximum((α[ig]*p + α[ib]*(1 - p) for α in as)) for p in ts]
-#     plot!(subplt, ts, y_env, lw=10, alpha=0.18, color=:yellow, label="upper envelope")
-
-#     # plot all α lines, color-coded by action
-#     for (k, α) in enumerate(as)
-#         a = acts[k]
-#         plot!(subplt, ts, [α[ig]*p + α[ib]*(1 - p) for p in ts],
-#               lw=2, color=get(color_for, a, :black), label=action_label(a))
-#     end
-
-#     # add titles and axis labels
-#     plot!(subplt, xlabel="p(rock good)", ylabel="Value",
-#           title="Position $(pos)", legendfontsize=8)
-
-#     # save file with coordinate in name
-#     filename = joinpath(outdir, "alphas_pos_$(pos[1])_$(pos[2]).png")
-#     savefig(subplt, filename)
-#     println("Saved $(filename)")
-
-# end
-
-
-
-# exit()
-
-for i in 1:50
+for i in 1:5000
 
 	global pos
 	if i == 1
@@ -1002,7 +764,7 @@ for i in 1:50
 	policy = solve(solver, sub_pomdp) # get policy using SARSOP solver
 
 	#get the next initial belief state
-	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map, actionList, init_state, global_idx_map)
+	pos = get_next_init_state(policy, sub_pomdp, rock_probs, sub_map, actionList, actionListNums, init_state, global_idx_map)
 	push!(posList, pos)
 
 	# if pos == "TERMINAL" || i == 20
@@ -1016,9 +778,11 @@ for i in 1:50
 	# 	break
 	# end
 
-	if pos == "TERMINAL" || i == 50
+	if pos == "TERMINAL" || i == 5000
 		println("Reached terminal state. Exiting loop.")
 		println("Actions taken: ")
+
+		POMDPs.initialstate(p::RockSamplePOMDP{K}) where K = rawInitState
 
 		# how many steps have positions recorded
 		nsteps = min(length(actionList), length(posList))
@@ -1028,7 +792,7 @@ for i in 1:50
 			p = posList[step_idx]  # expected like [x, y]
 			println("    ", a, " -> ", p)
 
-			# # Append to actions (long)
+			# # Append to actions (long) for multiple pomdps
 			# push!(actions_df, (run_label, j, step_idx, a))
 
 			# # Append to positions (long) as "[x,y]" string
@@ -1036,15 +800,17 @@ for i in 1:50
 			# 	push!(positions_df, (run_label, j, step_idx, "[$(p[1]),$(p[2])]"))
 			# end
 		end
+		# set this to true if your list is 0-based
+
 
 		break
 	end
 
-
-
 	println("============================================")
 
 end
+
+# for many pomdps 
 
 # push!(actionListList, actionList)
 
