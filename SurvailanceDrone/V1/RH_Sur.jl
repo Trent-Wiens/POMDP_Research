@@ -99,16 +99,23 @@ end
 function get_next_action(policy, sub_pomdp, init_belief)
     # policy = AlphaVectorPolicy
     # init_belief = Deterministic{DSState}
-    return action(policy, init_belief)
+
+    nextAction = action(policy, init_belief)
+
+    thisVal = value(policy, init_belief)
+
+    println("Value: $thisVal")
+
+    return nextAction
 end
 
 # --- Main Simulation Loop ---
 
 # 1. Setup Global Problem
 global_pomdp = DroneSurveillancePOMDP(
-    size = (20, 20),
+    size = (10,10),
     region_A = [1, 1],
-    region_B = [20, 20],
+    region_B = [100, 100],
     fov = (3, 3),
     agent_policy = :restricted # Agent moves somewhat predictably
 )
@@ -173,3 +180,4 @@ for t in 1:50
 end
 
 println("Simulation Complete.")
+

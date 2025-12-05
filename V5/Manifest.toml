@@ -2,7 +2,18 @@
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "8cd357b1f87039647597080178cff6774d8f7c99"
+project_hash = "7cc53c83dcbeea853cae9d1964d9a53efee077e9"
+
+[[deps.AbstractTrees]]
+git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
+uuid = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+version = "0.4.5"
+
+[[deps.AdaOPS]]
+deps = ["BasicPOMCP", "CPUTime", "D3Trees", "Distances", "Distributions", "LinearAlgebra", "MCTS", "POMDPLinter", "POMDPTools", "POMDPs", "Parameters", "ParticleFilters", "Plots", "Printf", "Random", "StaticArrays", "Statistics"]
+git-tree-sha1 = "bc035061f962fdff732981ac53ebf9ba6741631a"
+uuid = "eadfb9d8-44f1-454c-a5eb-0663ee7d74a1"
+version = "0.6.1"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -28,6 +39,12 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
+[[deps.BasicPOMCP]]
+deps = ["Colors", "D3Trees", "MCTS", "POMDPLinter", "POMDPTools", "POMDPs", "Parameters", "ParticleFilters", "Printf", "Random"]
+git-tree-sha1 = "90d7dfc64ebdee34659a400892c011c3f4eea46e"
+uuid = "d721219e-3fc6-5570-a8ef-e5402f47c49e"
+version = "0.3.12"
+
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
@@ -38,6 +55,11 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "1b96ea4a01afe0ea4090c5c8039690672dd13f2e"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.9+0"
+
+[[deps.CPUTime]]
+git-tree-sha1 = "2dcc50ea6a0a1ef6440d6eecd0fe3813e5671f45"
+uuid = "a9c8d775-2e2e-55fc-8582-045d282d599e"
+version = "1.0.0"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
@@ -139,6 +161,12 @@ git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
 uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
+[[deps.D3Trees]]
+deps = ["AbstractTrees", "HTTP", "JSON", "Random", "Sockets"]
+git-tree-sha1 = "df39d99dc4867e3d9290054948df3ad0de5f558f"
+uuid = "e3df1716-f71e-5df9-9e2d-98e193103c45"
+version = "0.3.6"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
@@ -183,6 +211,20 @@ deps = ["LinearAlgebra", "POMDPLinter", "POMDPTools", "POMDPs", "Printf", "Spars
 git-tree-sha1 = "4210976635e65e2410aa7662203c1d2090320891"
 uuid = "4b033969-44f6-5439-a48b-c11fa3648068"
 version = "0.4.8"
+
+[[deps.Distances]]
+deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
+git-tree-sha1 = "c7e3a542b999843086e2f29dac96a618c105be1d"
+uuid = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+version = "0.10.12"
+
+    [deps.Distances.extensions]
+    DistancesChainRulesCoreExt = "ChainRulesCore"
+    DistancesSparseArraysExt = "SparseArrays"
+
+    [deps.Distances.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -598,6 +640,12 @@ deps = ["Dates", "Logging"]
 git-tree-sha1 = "f00544d95982ea270145636c181ceda21c4e2575"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.2.0"
+
+[[deps.MCTS]]
+deps = ["Colors", "D3Trees", "POMDPLinter", "POMDPTools", "POMDPs", "Printf", "ProgressMeter", "Random"]
+git-tree-sha1 = "54caa2378219886966d259af1f22a8ffc6bd13b2"
+uuid = "e12ccd36-dcad-5f33-8774-9175229e7b33"
+version = "0.5.7"
 
 [[deps.MacroTools]]
 git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
